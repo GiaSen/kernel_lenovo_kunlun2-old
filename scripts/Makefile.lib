@@ -283,7 +283,12 @@ DTC ?= $(objtree)/scripts/dtc/dtc
 ifeq ($(KBUILD_ENABLE_EXTRA_GCC_CHECKS),)
 DTC_FLAGS += -Wno-unit_address_vs_reg \
 	-Wno-avoid_default_addr_size \
-	-Wno-reg_format
+	-Wno-reg_format \
+	-Wno-unit_address_format \
+	-Wno-avoid_default_addr_size \
+	-Wno-interrupts_property \
+	-Wno-reg_format \
+	-Wno-gpios_property
 endif
 
 # Generate an assembly file to wrap the output of the device tree compiler
