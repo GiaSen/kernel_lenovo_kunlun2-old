@@ -1,3 +1,2 @@
-# ignore all subdirs except stub
-*
+# ignore all subdirs except audio and stub
 !/stub/
