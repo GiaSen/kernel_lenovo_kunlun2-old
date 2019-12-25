@@ -911,7 +911,7 @@
 		status = "ok";
 	};
 
-	cam_ipe0: qcom,ipe0 {
+	cam_ipe0: qcom,ipe0@ac87000 {
 		cell-index = <0>;
 		compatible = "qcom,cam-ipe";
 		reg = <0xac87000 0x3000>;
@@ -941,7 +941,7 @@
 		status = "ok";
 	};
 
-	cam_ipe1: qcom,ipe1 {
+	cam_ipe1: qcom,ipe1@ac91000 {
 		cell-index = <1>;
 		compatible = "qcom,cam-ipe";
 		reg = <0xac91000 0x3000>;
@@ -971,7 +971,7 @@
 		status = "ok";
 	};
 
-	cam_bps: qcom,bps {
+	cam_bps: qcom,bps@ac6f000 {
 		cell-index = <0>;
 		compatible = "qcom,cam-bps";
 		reg = <0xac6f000 0x3000>;
@@ -1041,7 +1041,7 @@
 		status = "ok";
 	};
 
-	cam_jpeg_dma: qcom,jpegdma@0xac52000{
+	cam_jpeg_dma: qcom,jpegdma@ac52000{
 		cell-index = <0>;
 		compatible = "qcom,cam_jpeg_dma";
 		reg-names = "jpegdma_hw";

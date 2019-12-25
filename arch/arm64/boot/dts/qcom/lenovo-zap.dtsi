@@ -1,0 +1,254 @@
+/* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include "lenovo-zap-goodixfp.dtsi"
+
+/* nfc */
+&qupv3_se3_i2c {
+	nq@28 {
+		//qcom,nq-esepwr = <&tlmm 96 0x00>;   //only EVT2
+		qcom,nq-esepwr = <&tlmm 116 0x00>;
+		status = "okay";
+	};
+};
+&nfc_enable_active {
+	mux {
+		//pins = "gpio12", "gpio43", "gpio96";  //only EVT2
+		pins = "gpio12", "gpio43", "gpio116";
+	};
+	config {
+		//pins = "gpio12", "gpio43", "gpio96";  //only EVT2
+		pins = "gpio12", "gpio43", "gpio116";
+	};
+};
+&nfc_enable_suspend{
+	mux {
+		//pins = "gpio12", "gpio43", "gpio96";  //only EVT2
+		pins = "gpio12", "gpio43", "gpio116";
+	};
+	config {
+		//pins = "gpio12", "gpio43", "gpio96";  //only EVT2
+		pins = "gpio12", "gpio43", "gpio116";
+	};
+};
+//zap will not support ext sdcard. Disable it and -
+//gpio96 will be released which is now using by nfc
+&sdhc_2 {
+	status = "disabled";
+};
+
+&soc {
+	gpio_keys {
+		pinctrl-0 = <&key_vol_up_default>;
+		cam_snapshot {
+			status = "disabled";
+		};
+
+		cam_focus {
+			status = "disabled";
+		};
+	};
+
+    hall_switch {
+        reg = <0 0>;
+        compatible = "shenqi,hall_switch";
+        interrupt-parent = <&tlmm>;
+        interrupts = <124 0>;
+        pinctrl-names = "hall_default";
+        pinctrl-0 = <&hall_default>;
+        shenqi,hall-irq-gpio = <&tlmm 124 0x0>;
+//        ssc_vdd-supply = <&pm8994_l19>;
+    };
+};
+
+&pm660_haptics {
+	qcom,wave-shape = "sine";
+	qcom,vmax-mv = <1414>;
+	qcom,wave-play-rate-us = <4975>;
+	qcom,int-pwm-freq-khz = <505>;
+	qcom,sc-deb-cycles = <8>;
+	qcom,brake-pattern = <03 03 00 00>;
+	qcom,lra-auto-mode;
+};
+
+//add by gongdb for touch panel begin
+&qupv3_se9_i2c {
+        status = "okay";
+        goodix_i2c@5d {
+                compatible = "goodix,gt9889";
+                reg = <0x5d>;
+                status = "ok";
+                interrupt-parent = <&tlmm>;
+                interrupts = <125 0x2008>;
+                vtouch-supply = <&pm660_l11>;
+                pinctrl-names = "pmx_ts_active","pmx_ts_suspend";
+                pinctrl-0 = <&ts_int_active &ts_reset_active &ts_avdden_active>;
+                pinctrl-1 = <&ts_int_suspend &ts_reset_suspend &ts_avdden_suspend>;
+                goodix,reset-gpio = <&tlmm 95 0x0>;
+                goodix,avdd-en = <&tlmm 91 0x0>;
+                goodix,irq-gpio = <&tlmm 125 0x2008>;
+                goodix,irq-flags = <2>; /* 1:trigger rising, 2:trigger falling;*/
+                goodix,panel-max-id = <10>;
+                goodix,panel-max-x = <1080>;
+                goodix,panel-max-y = <2340>;
+                goodix,panel-max-w = <512>;
+                goodix,panel-max-p = <512>;
+                /* goodix,panel-key-map = <158 172 217>;*/ /*KEY_BACK, KEY_HOMEPAGE, KEY_SEARCH*/
+                goodix,power-on-delay-us = <0>; /*i2c pull up delay*/
+                goodix,power-off-delay-us = <1000>;
+                /*goodix,swap-axis;*/
+                /* goodix,x2x; */
+                /* goodix,y2y; */
+        };
+};
+
+&tlmm {
+               pmx_ts_int_active {
+                        ts_int_active: ts_int_active {
+                                   mux {
+                                           pins = "gpio125";
+                                           function = "gpio";
+                                   };
+
+                                   config {
+                                           pins = "gpio125";
+                                           drive-strength = <8>;
+                                           bias-pull-up;
+                                   };
+                           };
+                };
+
+                pmx_ts_int_suspend {
+                        ts_int_suspend: ts_int_suspend {
+                                mux {
+                                        pins = "gpio125";
+                                        function = "gpio";
+                                };
+
+                                config {
+                                        pins = "gpio125";
+                                        drive-strength = <2>;
+                                        bias-disable;
+                                };
+                        };
+                };
+                pmx_ts_reset_active {
+                        ts_reset_active: ts_reset_active {
+                                         mux {
+                                                 pins = "gpio95";
+                                                 function = "gpio";
+                                         };
+
+                                         config {
+                                                 pins = "gpio95";
+                                                 drive-strength = <8>;
+                                                 bias-pull-up;
+                                         };
+                                 };
+                };
+                pmx_ts_reset_suspend {
+                        ts_reset_suspend: ts_reset_suspend {
+                                mux {
+                                        pins = "gpio95";
+                                        function = "gpio";
+                                };
+
+                                config {
+                                        pins = "gpio95";
+                                        drive-strength = <2>;
+                                        bias-pull-down;
+                                };
+                        };
+                };
+
+		pmx_ts_ts_avdden_active {
+			ts_avdden_active: ts_avdden_active {
+                        /* active state */
+                        mux {
+                                 pins = "gpio91";
+                                 function = "gpio";
+                        };
+
+                        config {
+                                 pins = "gpio91";
+                                 drive-strength = <2>; /* 2 MA */
+                                 bias-pull-up;
+				};
+			};
+		};
+
+		pmx_ts_avdden_suspend {
+			ts_avdden_suspend: ts_avdden_suspend {
+                       /* sleep state */
+                       mux {
+                                pins = "gpio91";
+                                function = "gpio";
+                       };
+
+                       config {
+                                pins = "gpio91";
+                                drive-strength = <2>; /* 2 MA */
+                                bias-pull-up;
+				};
+			};
+		};
+};
+//add by gongdb for touch panel end
+
+//add by gongdb for lcm reset pin begin
+&tlmm {
+
+                pmx_sde: pmx_sde {
+                        sde_dsi_active: sde_dsi_active {
+                                mux {
+                                        pins = "gpio92";
+                                        function = "gpio";
+                                };
+
+                                config {
+                                        pins = "gpio92";
+                                        drive-strength = <8>;   /* 8 mA */
+                                        bias-disable = <0>;   /* no pull */
+                                };
+                        };
+                        sde_dsi_suspend: sde_dsi_suspend {
+                                mux {
+                                        pins = "gpio92";
+                                        function = "gpio";
+                                };
+
+                                config {
+                                        pins = "gpio92";
+                                        drive-strength = <2>;   /* 2 mA */
+                                        bias-pull-down;         /* PULL DOWN */
+                                };
+                        };
+                };
+
+};
+//add by gongdb for lcd reset pin end
+
+&tlmm {
+    hall_default: hall_default {
+        mux {
+            pins = "gpio124";
+            function = "gpio";
+        };
+
+        config {
+            pins = "gpio124";
+            drive-strength = <2>;   /* 2 mA */
+            bias-disable;
+            input-enable;
+        };
+    };
+};

@@ -178,7 +178,15 @@ int backlight_device_set_brightness(struct backlight_device *bd,
 	mutex_lock(&bd->ops_lock);
 	if (bd->ops) {
 		if (brightness > bd->props.max_brightness)
-			rc = -EINVAL;
+//[ZUIP-1650][JD19][LCM]modify by gongdb1 for echo max_brightness begin
+			//rc = -EINVAL;
+		{
+			brightness = bd->props.max_brightness;
+                        pr_debug("set brightness to %lu\n", brightness);
+                        bd->props.brightness = brightness;
+                        rc = backlight_update_status(bd);
+		}
+//[ZUIP-1650][JD19][LCM]modify by gongdb1 for echo max_brightness end
 		else {
 			pr_debug("set brightness to %lu\n", brightness);
 			bd->props.brightness = brightness;
@@ -231,7 +239,36 @@ static ssize_t max_brightness_show(struct device *dev,
 
 	return sprintf(buf, "%d\n", bd->props.max_brightness);
 }
-static DEVICE_ATTR_RO(max_brightness);
+//[ZUIP-1650][JD19][LCM]gongdb1 add for echo max_brightness begin
+//static DEVICE_ATTR_RO(max_brightness);
+//[ZUIP-1650][JD19][LCM]gongdb1 add for echo max_brightness end
+
+//[ZUIP-1650][JD19][LCM]gongdb1 add for echo max_brightness begin
+static ssize_t max_brightness_store(struct device *dev,
+                struct device_attribute *attr, const char *buf, size_t count)
+{
+        int rc;
+        struct backlight_device *bd = to_backlight_device(dev);
+        unsigned long max_brightness;
+
+        rc = kstrtoul(buf, 0, &max_brightness);
+        if (rc)
+                return rc;
+
+	if (max_brightness > 4095)
+			max_brightness = 4095;
+
+	if (max_brightness < 10)
+			max_brightness = 10;
+
+	bd->props.max_brightness = max_brightness;
+
+	if (bd->props.brightness > 0)
+		backlight_device_set_brightness(bd, bd->props.brightness);
+        return rc ? rc : count;
+}
+static DEVICE_ATTR_RW(max_brightness);
+//[ZUIP-1650][JD19][LCM]gongdb1 add for echo max_brightness end
 
 static ssize_t actual_brightness_show(struct device *dev,
 		struct device_attribute *attr, char *buf)

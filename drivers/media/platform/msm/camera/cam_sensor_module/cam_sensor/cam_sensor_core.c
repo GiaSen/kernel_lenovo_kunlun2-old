@@ -18,6 +18,13 @@
 #include "cam_trace.h"
 #include "cam_common_util.h"
 
+/* Huaqin add for add camera kernel node by zhangpeng at 2018/9/13 start*/
+extern char *cameraModuleInfo[4];
+/* Huaqin add for add camera kernel node by zhangpeng at 2018/9/13 end*/
+
+#include "cam_sensor_efuse_id.h"
+
+
 static void cam_sensor_update_req_mgr(
 	struct cam_sensor_ctrl_t *s_ctrl,
 	struct cam_packet *csl_packet)
@@ -516,6 +523,10 @@ int cam_sensor_match_id(struct cam_sensor_ctrl_t *s_ctrl)
 	uint32_t chipid = 0;
 	struct cam_camera_slave_info *slave_info;
 
+	/* Huaqin add for add camera kernel node by zhangpeng at 2018/9/13 start*/
+	char *sensor_name = "default";
+	/* Huaqin add for add camera kernel node by zhangpeng at 2018/9/13 end*/
+
 	slave_info = &(s_ctrl->sensordata->slave_info);
 
 	if (!slave_info) {
@@ -537,6 +548,31 @@ int cam_sensor_match_id(struct cam_sensor_ctrl_t *s_ctrl)
 				chipid, slave_info->sensor_id);
 		return -ENODEV;
 	}
+	
+	/* Huaqin add for add camera kernel node by zhangpeng at 2018/9/13 start*/
+	switch(slave_info->sensor_id){
+		case MAIN_SENSOR_ID:
+			sensor_name="ov16b10";
+			break;
+		case FRONT_SENSOR_ID:
+			sensor_name="s5k3p9";
+			break;
+		case REAR_AUX1_SENSOR_ID:
+			sensor_name="ov8856";
+			break;
+		case REAR_AUX2_SENSOR_ID:
+			sensor_name="s5k5e9";
+			break;
+		default:
+			sensor_name="NULL";
+	}
+
+	cameraModuleInfo[s_ctrl->soc_info.index] = sensor_name;
+
+	CAM_ERR(CAM_SENSOR, " cameraModuleInfo[%d] :  sensor_name %s",
+				s_ctrl->soc_info.index,sensor_name);
+	/* Huaqin add for add camera kernel node by zhangpeng at 2018/9/13 end*/
+
 	return rc;
 }
 
@@ -628,17 +664,26 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 			s_ctrl->sensordata->slave_info.sensor_slave_addr,
 			s_ctrl->sensordata->slave_info.sensor_id);
 
+            
+        rc = get_CameName_and_EfuseId(s_ctrl);
+		if (rc < 0) {
+			CAM_ERR(CAM_SENSOR, "get CameName EfuseId error ");
+		}
+            
 		rc = cam_sensor_power_down(s_ctrl);
 		if (rc < 0) {
 			CAM_ERR(CAM_SENSOR, "fail in Sensor Power Down");
 			goto free_power_settings;
 		}
+        
+
 		/*
 		 * Set probe succeeded flag to 1 so that no other camera shall
 		 * probed on this slot
 		 */
 		s_ctrl->is_probe_succeed = 1;
 		s_ctrl->sensor_state = CAM_SENSOR_INIT;
+
 	}
 		break;
 	case CAM_ACQUIRE_DEV: {

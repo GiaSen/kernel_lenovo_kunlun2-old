@@ -1,0 +1,83 @@
+
+qcom,3565325_lenovo_zapscud_3300mah_averaged_masterslave_jul30th2018 {
+	qcom, = <24>;
+	/* #3565325_Lenovo_ZAPscud_3300mAh_averaged_MasterSlave_Jul30th2018*/
+	qcom,max-voltage-uv = <4400000>;
+	qcom,fg-cc-cv-threshold-mv = <4390>;
+	qcom,nom-batt-capacity-mah = <3300>;
+	qcom,batt-id-kohm = <100>;
+	qcom,battery-beta = <3380>;
+	qcom,jeita-fcc-ranges = <0       150   500000
+				 150     400   3000000
+				 400     410   2400000
+				 410     430   2200000
+				 430     470   2000000
+				 470     500   600000>;
+	qcom,jeita-fv-ranges =  <0       150   4400000
+				 150     450   4400000
+				 450     500   4200000>;
+	qcom,step-chg-ranges = <3000000  4200000  3000000
+				4200000  4400000  2200000>;
+	qcom,battery-type = "3565325_lenovo_zapscud_3300mah_averaged_masterslave_jul30th2018";
+	qcom,checksum = <0xD753>;
+	qcom,gui-version = "PM660GUI - 0.0.0.45";
+	qcom,fastchg-current-ma = <3000>;
+	qcom,fg-profile-data = [
+		 B0 1E 7D FD
+		 08 03 51 07
+		 E0 1C FF 01
+		 A0 0D C3 0A
+		 24 18 92 23
+		 A5 44 2A 5A
+		 6B 00 00 00
+		 10 00 00 00
+		 00 00 FF 07
+		 DD CD 9D BA
+		 1E 00 08 00
+		 74 DB 08 E4
+		 A1 06 96 F2
+		 12 EB 47 12
+		 55 FD E2 2B
+		 1E 06 09 20
+		 27 00 14 00
+		 72 1F 05 06
+		 0F 0A C6 06
+		 C6 1C F4 02
+		 FF 15 30 12
+		 84 18 F9 23
+		 BE 4D 8D 5B
+		 68 00 00 00
+		 0D 00 00 00
+		 00 00 D8 D5
+		 05 00 00 AC
+		 19 00 00 00
+		 1C EB 08 E4
+		 13 F4 BC EA
+		 C9 F5 91 02
+		 B3 02 97 1B
+		 B6 33 CC FF
+		 07 10 00 00
+		 D7 0C 66 46
+		 19 00 40 00
+		 83 01 0A FA
+		 FF 00 00 00
+		 00 00 00 00
+		 00 00 00 00
+		 00 00 00 00
+		 00 00 00 00
+		 00 00 00 00
+		 00 00 00 00
+		 00 00 00 00
+		 00 00 00 00
+		 00 00 00 00
+		 00 00 00 00
+		 00 00 00 00
+		 00 00 00 00
+		 00 00 00 00
+		 00 00 00 00
+		 00 00 00 00
+		 00 00 00 00
+		 00 00 00 00
+		 00 00 00 00
+	];
+};

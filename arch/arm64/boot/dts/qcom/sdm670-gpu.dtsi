@@ -659,7 +659,7 @@
 		};
 	};
 
-	kgsl_msm_iommu: qcom,kgsl-iommu {
+	kgsl_msm_iommu: qcom,kgsl-iommu@5040000 {
 		compatible = "qcom,kgsl-smmu-v2";
 
 		reg = <0x05040000 0x10000>;
@@ -694,7 +694,7 @@
 		};
 	};
 
-	gmu: qcom,gmu {
+	gmu: qcom,gmu@506a000 {
 		label = "kgsl-gmu";
 		compatible = "qcom,gpu-gmu";
 

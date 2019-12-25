@@ -15,7 +15,7 @@
 #include <dt-bindings/clock/qcom,videocc-sdm845.h>
 
 &soc {
-	msm_vidc0: qcom,vidc0 {
+	msm_vidc0: qcom,vidc0@aa00000 {
 		compatible = "qcom,msm-vidc", "qcom,sdm670-vidc";
 		status = "ok";
 		sku-index = <0>;
@@ -116,7 +116,7 @@
 		};
 	};
 
-	msm_vidc1: qcom,vidc1 {
+	msm_vidc1: qcom,vidc1@aa00000 {
 		compatible = "qcom,msm-vidc", "qcom,sdm670-vidc";
 		status = "ok";
 		sku-index = <1>;

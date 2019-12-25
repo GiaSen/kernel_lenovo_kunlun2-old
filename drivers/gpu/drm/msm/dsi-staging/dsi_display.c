@@ -192,6 +192,52 @@ error:
 	return rc;
 }
 
+int dsi_display_set_backlight_hbm(void *display, u32 bl_lvl)
+{
+	struct dsi_display *dsi_display = display;
+	struct dsi_panel *panel;
+	u64 bl_temp;
+	int rc = 0;
+
+	if (dsi_display == NULL || dsi_display->panel == NULL)
+		return -EINVAL;
+
+	panel = dsi_display->panel;
+
+	mutex_lock(&panel->panel_lock);
+	if (!dsi_panel_initialized(panel)) {
+		rc = -EINVAL;
+		goto error;
+	}
+
+	bl_temp = bl_lvl;
+	pr_debug(" bl_lvl = %u\n", (u32)bl_temp);
+
+	rc = dsi_display_clk_ctrl(dsi_display->dsi_clk_handle,
+			DSI_CORE_CLK, DSI_CLK_ON);
+	if (rc) {
+		pr_err("[%s] failed to enable DSI core clocks, rc=%d\n",
+		       dsi_display->name, rc);
+		goto error;
+	}
+
+	rc = dsi_panel_set_backlight_hbm(panel, (u32)bl_temp);
+	if (rc)
+		pr_err("unable to set backlight\n");
+
+	rc = dsi_display_clk_ctrl(dsi_display->dsi_clk_handle,
+			DSI_CORE_CLK, DSI_CLK_OFF);
+	if (rc) {
+		pr_err("[%s] failed to disable DSI core clocks, rc=%d\n",
+		       dsi_display->name, rc);
+		goto error;
+	}
+
+error:
+	mutex_unlock(&panel->panel_lock);
+	return rc;
+}
+
 static int dsi_display_cmd_engine_enable(struct dsi_display *display)
 {
 	int rc = 0;

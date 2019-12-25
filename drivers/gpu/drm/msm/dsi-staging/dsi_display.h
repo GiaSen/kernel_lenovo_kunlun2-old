@@ -28,6 +28,11 @@
 #include "dsi_phy.h"
 #include "dsi_panel.h"
 
+#ifdef CONFIG_PRODUCT_ZAP
+#define CONFIG_BRIGHTNESS_HBM
+#define DSI_PANEl_ELVSS_DIM_OFF
+#endif
+
 #define MAX_DSI_CTRLS_PER_DISPLAY             2
 #define DSI_CLIENT_NAME_SIZE		20
 #define MAX_CMDLINE_PARAM_LEN	 512
@@ -585,6 +590,7 @@ void dsi_display_enable_event(struct dsi_display *display,
 		bool enable);
 
 int dsi_display_set_backlight(void *display, u32 bl_lvl);
+int dsi_display_set_backlight_hbm(void *display, u32 bl_lvl);
 
 /**
  * dsi_display_check_status() - check if panel is dead or alive

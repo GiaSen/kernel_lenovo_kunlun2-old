@@ -269,6 +269,32 @@ source "kernel/Kconfig.freezer"
 
 source "arch/arm64/Kconfig.platforms"
 
+choice
+    bool "Product selection"
+    default PRODUCT_ZAP
+    help
+      select build product
+
+config PRODUCT_ZAP
+    bool "zap"
+    help
+         This enables support for zap product. If you don't
+         know what to do here, say N
+
+config PRODUCT_JD2019
+    bool "jd2019"
+    help
+         This enables support for jd2019 product. If you don't
+         know what to do here, say N
+
+config PRODUCT_KUNLUN2
+    bool "kunlun2"
+	help
+	     This enables support for kunlun2 product. If you don't
+		 know what to do here, say N
+
+endchoice
+
 menu "Bus support"
 
 config PCI

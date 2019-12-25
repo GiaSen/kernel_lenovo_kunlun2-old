@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/*Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -447,6 +447,7 @@
 	};
 
 	aoss0-lowf {
+		disable-thermal-zone;
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-governor = "low_limits_floor";
@@ -499,6 +500,7 @@
 	};
 
 	aoss1-lowf {
+		disable-thermal-zone;
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-governor = "low_limits_floor";
@@ -597,6 +599,8 @@
 				hysteresis = <0>;
 				type = "passive";
 			};
+/*
+ * delete modem device solve high temp can't call
 			modem_trip0: modem-trip0 {
 				temperature = <48000>;
 				hysteresis = <4000>;
@@ -617,9 +621,11 @@
 				hysteresis = <4000>;
 				type = "passive";
 			};
+*/
 		};
 
 		cooling-maps {
+#if 0
 			skin_cpu6 {
 				trip = <&gold_trip0>;
 				cooling-device =
@@ -658,6 +664,9 @@
 				trip = <&silver_trip1>;
 				cooling-device = <&CPU5 THERMAL_NO_LIMIT 2>;
 			};
+#endif
+/*
+ * delete modem device solve high temp can't call
 			modem_lvl1 {
 				trip = <&modem_trip1>;
 				cooling-device = <&modem_pa 1 1>;
@@ -678,6 +687,7 @@
 				trip = <&modem_trip3>;
 				cooling-device = <&modem_proc 3 3>;
 			};
+*/
 		};
 	};
 

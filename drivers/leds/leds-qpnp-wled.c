@@ -2675,6 +2675,28 @@ static int qpnp_wled_parse_dt(struct qpnp_wled *wled)
 	return 0;
 }
 
+//[ZUIP-2146][JD19][LCM] add by gongdb for the first usb_chg mode backlight issue begin
+static bool parse_cmdline_is_usbchg_boot(void)
+{
+	extern char *saved_command_line;
+	char search_string[50];
+
+        if (strnstr(saved_command_line, "androidboot.bootreason=",
+                    strlen(saved_command_line))) {
+
+                snprintf(search_string, ARRAY_SIZE(search_string),
+                        "androidboot.bootreason=%s", "usb_chg");
+                if (strnstr(saved_command_line, search_string,
+                    strlen(saved_command_line)))
+                        return true;
+                else
+                        return false;
+        }
+
+        return false;
+}
+//[ZUIP-2146][JD19][LCM] add by gongdb for the first usb_chg mode backlight issue end
+
 static int qpnp_wled_probe(struct platform_device *pdev)
 {
 	struct qpnp_wled *wled;
@@ -2762,6 +2784,17 @@ static int qpnp_wled_probe(struct platform_device *pdev)
 	wled->cdev.brightness_get = qpnp_wled_get;
 
 	wled->cdev.max_brightness = WLED_MAX_LEVEL_4095;
+
+	//[ZUIP-2146][JD19][LCM] add by gongdb for the first usb_chg mode backlight issue begin
+	if (parse_cmdline_is_usbchg_boot()) {
+		wled->prev_state = 1;
+		dev_dbg(&pdev->dev, "in qpnp_wled_probe func set prev_state to 1 on usbchg boot\n");
+	}
+	else {
+		dev_dbg(&pdev->dev, "in qpnp_wled_probe func keep prev_state to 0 on not usbchg boot\n");
+	}
+	//[ZUIP-2146][JD19][LCM] add by gongdb for the first usb_chg mode backlight issue end
+
 
 	rc = led_classdev_register(&pdev->dev, &wled->cdev);
 	if (rc) {

@@ -30,6 +30,30 @@
 #include <linux/pmic-voter.h>
 
 #define SMB2_DEFAULT_WPWR_UW	8000000
+#if defined(CONFIG_PRODUCT_JD2019)
+#define USB_CHARGE_FAIL_WHEN_SHUTDUWN
+int g_play_enable = 0;
+#endif
+#if defined(CONFIG_PRODUCT_ZAP)
+#define USB_CHARGE_FAIL_WHEN_SHUTDUWN
+#endif
+
+#define SUPPORT_BATTERY_AGE
+#define SUPPORT_USER_CHARGE_OP
+#ifdef SUPPORT_USER_CHARGE_OP
+extern void smblib_start_user_health_work(struct smb_charger *chg);
+extern void smblib_restart_user_health_work(struct smb_charger *chg);
+#endif
+
+#if defined(CONFIG_PRODUCT_KUNLUN2)
+//houzn add
+#include <ontim/ontim_dev_dgb.h>
+#define CHARGER_IC_INFO  "PM670+SMB1355"
+DEV_ATTR_DECLARE(charge_ic)
+DEV_ATTR_DEFINE("vendor", CHARGER_IC_INFO)
+DEV_ATTR_DECLARE_END;
+ONTIM_DEBUG_DECLARE_AND_INIT(charge_ic, charge_ic, 8);
+#endif
 
 static struct smb_params v1_params = {
 	.fcc			= {
@@ -160,7 +184,9 @@ struct smb_dt_props {
 	int	usb_icl_ua;
 	int	dc_icl_ua;
 	int	boost_threshold_ua;
+#if !defined(CONFIG_PRODUCT_KUNLUN2)
 	int	wipower_max_uw;
+#endif
 	int	min_freq_khz;
 	int	max_freq_khz;
 	struct	device_node *revid_dev_node;
@@ -179,7 +205,25 @@ struct smb2 {
 	bool			bad_part;
 };
 
+#if defined(CONFIG_PRODUCT_KUNLUN2)
+//hzn add
+static bool compass_opened = false;
+#endif
+
+#if defined(CONFIG_PRODUCT_JD2019)
+static int __debug_mask = 0xC;
+
+#if defined(CUSTOM_IDENTIFY_FLOAT_CHARGER)
+struct smb_charger *smbchg_dev = NULL;
+#endif
+#elif defined(CONFIG_PRODUCT_KUNLUN2)
+static int __debug_mask = 0x11;
+#elif defined(CONFIG_PRODUCT_ZAP)
+static int __debug_mask = 0x1D;
+#else
 static int __debug_mask;
+#endif
+
 module_param_named(
 	debug_mask, __debug_mask, int, 0600
 );
@@ -216,6 +260,11 @@ static int smb2_parse_dt(struct smb2 *chip)
 		pr_err("device tree node missing\n");
 		return -EINVAL;
 	}
+
+#if defined(CONFIG_PRODUCT_JD2019)
+	chg->start_game_enabled = of_property_read_bool(node,
+                                "qcom,start-game-enable");
+#endif
 
 	chg->step_chg_enabled = of_property_read_bool(node,
 				"qcom,step-charging-enable");
@@ -274,10 +323,12 @@ static int smb2_parse_dt(struct smb2 *chip)
 	if (rc < 0)
 		chip->dt.max_freq_khz = -EINVAL;
 
+#if !defined(CONFIG_PRODUCT_KUNLUN2)
 	rc = of_property_read_u32(node, "qcom,wipower-max-uw",
 				&chip->dt.wipower_max_uw);
 	if (rc < 0)
 		chip->dt.wipower_max_uw = -EINVAL;
+#endif
 
 	if (of_find_property(node, "qcom,thermal-mitigation", &byte_len)) {
 		chg->thermal_mitigation = devm_kzalloc(chg->dev, byte_len,
@@ -392,13 +443,42 @@ static int smb2_usb_get_prop(struct power_supply *psy,
 		rc = smblib_get_prop_usb_online(chg, val);
 		if (!val->intval)
 			break;
-
+#if defined(CONFIG_PRODUCT_JD2019)
+#ifdef USB_CHARGE_FAIL_WHEN_SHUTDUWN
+		if (chg->connector_type == POWER_SUPPLY_CONNECTOR_TYPEC)
+                        val->intval = 1;
+                else
+                        val->intval = 0;
+#else
 		if (((chg->typec_mode == POWER_SUPPLY_TYPEC_SOURCE_DEFAULT)
 		   || (chg->connector_type == POWER_SUPPLY_CONNECTOR_MICRO_USB))
 		   && (chg->real_charger_type == POWER_SUPPLY_TYPE_USB))
 			val->intval = 0;
 		else
 			val->intval = 1;
+#endif
+#elif defined(CONFIG_PRODUCT_ZAP)
+#ifdef USB_CHARGE_FAIL_WHEN_SHUTDUWN
+		if (chg->connector_type == POWER_SUPPLY_CONNECTOR_TYPEC)
+                        val->intval = 1;
+                else
+                        val->intval = 0;
+#else
+		if (((chg->typec_mode == POWER_SUPPLY_TYPEC_SOURCE_DEFAULT)
+		   || (chg->connector_type == POWER_SUPPLY_CONNECTOR_MICRO_USB))
+		   && (chg->real_charger_type == POWER_SUPPLY_TYPE_USB))
+			val->intval = 0;
+		else
+			val->intval = 1;
+#endif
+#else
+		if (((chg->typec_mode == POWER_SUPPLY_TYPEC_SOURCE_DEFAULT)
+		   || (chg->connector_type == POWER_SUPPLY_CONNECTOR_MICRO_USB))
+		   && (chg->real_charger_type == POWER_SUPPLY_TYPE_USB))
+			val->intval = 0;
+		else
+			val->intval = 1;
+#endif
 		if (chg->real_charger_type == POWER_SUPPLY_TYPE_UNKNOWN)
 			val->intval = 0;
 		break;
@@ -433,6 +513,9 @@ static int smb2_usb_get_prop(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_TYPEC_SOURCE_DEFAULT;
 		else
 			val->intval = chg->typec_mode;
+#if defined( CONFIG_PRODUCT_KUNLUN2 )
+		//pr_err("hzn::typec_mode = %d----\n", val->intval);
+#endif
 		break;
 	case POWER_SUPPLY_PROP_TYPEC_POWER_ROLE:
 		if (chg->connector_type == POWER_SUPPLY_CONNECTOR_MICRO_USB)
@@ -989,8 +1072,21 @@ static enum power_supply_property smb2_batt_props[] = {
 	POWER_SUPPLY_PROP_CURRENT_QNOVO,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
+#if defined(CONFIG_PRODUCT_KUNLUN2)
+	POWER_SUPPLY_PROP_COMPASS_OPENED, //hzn add
+#endif
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
+#if defined(CONFIG_PRODUCT_JD2019)
+	POWER_SUPPLY_PROP_START_GAME_ENABLED,
+#endif
+#ifdef SUPPORT_BATTERY_AGE
+	POWER_SUPPLY_PROP_AGE,
+#endif
+#ifdef SUPPORT_USER_CHARGE_OP
+	POWER_SUPPLY_PROP_USER_CHARGE_OP,
+	POWER_SUPPLY_PROP_USER_CHARGE_SOC,
+#endif
 	POWER_SUPPLY_PROP_STEP_CHARGING_ENABLED,
 	POWER_SUPPLY_PROP_SW_JEITA_ENABLED,
 	POWER_SUPPLY_PROP_CHARGE_DONE,
@@ -1018,6 +1114,9 @@ static int smb2_batt_get_prop(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		rc = smblib_get_prop_batt_status(chg, val);
+#if defined(CONFIG_PRODUCT_KUNLUN2)
+		//pr_err("hzn::batt_status = %d\n", val->intval);
+#endif
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		rc = smblib_get_prop_batt_health(chg, val);
@@ -1027,9 +1126,15 @@ static int smb2_batt_get_prop(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_INPUT_SUSPEND:
 		rc = smblib_get_prop_input_suspend(chg, val);
+#if defined(CONFIG_PRODUCT_KUNLUN2)
+		//pr_err("hzn::input_suspend = %d\n", val->intval);
+#endif
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
 		rc = smblib_get_prop_batt_charge_type(chg, val);
+#if defined(CONFIG_PRODUCT_KUNLUN2)
+		//pr_err("hzn::charge_type = %d\n", val->intval);
+#endif
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		rc = smblib_get_prop_batt_capacity(chg, val);
@@ -1049,6 +1154,12 @@ static int smb2_batt_get_prop(struct power_supply *psy,
 		rc = -ENODATA;
 		if (pval.intval)
 			rc = smblib_get_prop_charger_temp(chg, val);
+#if defined(CONFIG_PRODUCT_JD2019) || defined(CONFIG_PRODUCT_KUNLUN2) || defined(CONFIG_PRODUCT_ZAP)
+		else {
+			rc = 0;
+			val->intval = 0;
+		}
+#endif
 		break;
 	case POWER_SUPPLY_PROP_CHARGER_TEMP_MAX:
 		rc = smblib_get_prop_charger_temp_max(chg, val);
@@ -1056,6 +1167,29 @@ static int smb2_batt_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMITED:
 		rc = smblib_get_prop_input_current_limited(chg, val);
 		break;
+#if defined(CONFIG_PRODUCT_JD2019)
+	case POWER_SUPPLY_PROP_START_GAME_ENABLED:
+		val->intval = chg->start_game_enabled;
+                break;
+#endif
+#if defined(CONFIG_PRODUCT_KUNLUN2)
+	case POWER_SUPPLY_PROP_COMPASS_OPENED:
+		val->intval = compass_opened;
+                break;
+#endif
+#ifdef SUPPORT_BATTERY_AGE
+	case POWER_SUPPLY_PROP_AGE:
+		rc = smblib_get_prop_batt_age(chg, val);
+		break;
+#endif
+#ifdef SUPPORT_USER_CHARGE_OP
+	case POWER_SUPPLY_PROP_USER_CHARGE_OP:
+		val->intval = chg->user_charge_op_enable;
+		break;
+	case POWER_SUPPLY_PROP_USER_CHARGE_SOC:
+		val->intval = chg->user_charge_soc;
+		break;
+#endif
 	case POWER_SUPPLY_PROP_STEP_CHARGING_ENABLED:
 		val->intval = chg->step_chg_enabled;
 		break;
@@ -1150,7 +1284,18 @@ static int smb2_batt_set_prop(struct power_supply *psy,
 		rc = smblib_set_prop_input_suspend(chg, val);
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
+#if defined( CONFIG_PRODUCT_KUNLUN2 )
+		//hzn add for compass
+		if(compass_opened == true){
+			pr_err("hzn::compass opened can not set temp_level\n");
+		}
+		else{
+			rc = smblib_set_prop_system_temp_level(chg, val);
+			pr_err("hzn::set temp_level = %d\n", val->intval);
+		}
+#else
 		rc = smblib_set_prop_system_temp_level(chg, val);
+#endif
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		rc = smblib_set_prop_batt_capacity(chg, val);
@@ -1181,6 +1326,32 @@ static int smb2_batt_set_prop(struct power_supply *psy,
 			vote(chg->fcc_votable, BATT_PROFILE_VOTER, false, 0);
 		}
 		break;
+#if defined(CONFIG_PRODUCT_JD2019)
+	case POWER_SUPPLY_PROP_START_GAME_ENABLED:
+                chg->start_game_enabled = !!val->intval;
+		g_play_enable = chg->start_game_enabled;
+	        break;
+#endif
+#ifdef SUPPORT_USER_CHARGE_OP
+#define USER_CHARGE_OP_FCC_UA	2000000
+	case POWER_SUPPLY_PROP_USER_CHARGE_OP:
+		chg->user_charge_op_enable = !!val->intval;
+		pr_info("user_batt_health set user_charge_op to %d\n", chg->user_charge_op_enable);
+		if (chg->user_charge_op_enable) {
+			vote(chg->fcc_votable, FCC_USER_CHARGE_OP_VOTER, true, USER_CHARGE_OP_FCC_UA);
+			pr_info("user_batt_health enable user_charge_op %d\n", USER_CHARGE_OP_FCC_UA);
+		} else {
+			vote(chg->fcc_votable, FCC_USER_CHARGE_OP_VOTER, false, 0);
+			pr_info("user_batt_health disable user_charge_op\n");
+		}
+		smblib_restart_user_health_work(chg);
+		break;
+	case POWER_SUPPLY_PROP_USER_CHARGE_SOC:
+		chg->user_charge_soc = val->intval;
+		pr_info("user_batt_health set user_charge_soc to %d\n", chg->user_charge_soc);
+		smblib_restart_user_health_work(chg);
+		break;
+#endif
 	case POWER_SUPPLY_PROP_STEP_CHARGING_ENABLED:
 		chg->step_chg_enabled = !!val->intval;
 		break;
@@ -1195,6 +1366,21 @@ static int smb2_batt_set_prop(struct power_supply *psy,
 		chg->batt_profile_fcc_ua = val->intval;
 		vote(chg->fcc_votable, BATT_PROFILE_VOTER, true, val->intval);
 		break;
+#if defined( CONFIG_PRODUCT_KUNLUN2 )
+	//hzn add for compass
+	case POWER_SUPPLY_PROP_COMPASS_OPENED:
+		pr_err("hzn::set COMPASS_OPENED = %d\n", val->intval);
+		if(val->intval == 100){
+			compass_opened = true;
+			pr_err("hzn::compass opened:limit fcc 1000ma\n");
+			vote(chg->fcc_votable, THERMAL_DAEMON_VOTER, true, 1000000);
+		}
+		else if(val->intval == 200){
+			compass_opened = false;
+			pr_err("hzn::compass closed!\n");
+		}
+		break;
+#endif
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
 		if (val->intval)
 			vote(chg->fcc_votable, FG_ESR_VOTER, true, val->intval);
@@ -1242,6 +1428,13 @@ static int smb2_batt_prop_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_DP_DM:
 	case POWER_SUPPLY_PROP_RERUN_AICL:
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMITED:
+#if defined(CONFIG_PRODUCT_JD2019)
+	case POWER_SUPPLY_PROP_START_GAME_ENABLED:
+#endif
+#ifdef SUPPORT_USER_CHARGE_OP
+	case POWER_SUPPLY_PROP_USER_CHARGE_OP:
+	case POWER_SUPPLY_PROP_USER_CHARGE_SOC:
+#endif
 	case POWER_SUPPLY_PROP_STEP_CHARGING_ENABLED:
 	case POWER_SUPPLY_PROP_SW_JEITA_ENABLED:
 	case POWER_SUPPLY_PROP_DIE_HEALTH:
@@ -1372,6 +1565,7 @@ static int smb2_init_vconn_regulator(struct smb2 *chip)
 /***************************
  * HARDWARE INITIALIZATION *
  ***************************/
+#if !defined(CONFIG_PRODUCT_KUNLUN2)
 static int smb2_config_wipower_input_power(struct smb2 *chip, int uw)
 {
 	int rc;
@@ -1426,6 +1620,7 @@ static int smb2_config_wipower_input_power(struct smb2 *chip, int uw)
 
 	return 0;
 }
+#endif
 
 static int smb2_configure_typec(struct smb_charger *chg)
 {
@@ -1731,12 +1926,14 @@ static int smb2_init_hw(struct smb2 *chip)
 		return rc;
 	}
 
+#if !defined(CONFIG_PRODUCT_KUNLUN2)
 	/* configure wipower watts */
 	rc = smb2_config_wipower_input_power(chip, chip->dt.wipower_max_uw);
 	if (rc < 0) {
 		dev_err(chg->dev, "Couldn't configure wipower rc=%d\n", rc);
 		return rc;
 	}
+#endif
 
 	/* disable h/w autonomous parallel charging control */
 	rc = smblib_masked_write(chg, MISC_CFG_REG,
@@ -2358,6 +2555,16 @@ static int smb2_probe(struct platform_device *pdev)
 	chg->die_health = -EINVAL;
 	chg->name = "PMI";
 	chg->audio_headset_drp_wait_ms = &__audio_headset_drp_wait_ms;
+#if defined(CONFIG_PRODUCT_JD2019)
+#if defined(CUSTOM_IDENTIFY_FLOAT_CHARGER)
+	smbchg_dev = chg;
+#endif
+#endif
+#ifdef SUPPORT_USER_CHARGE_OP
+	chg->user_charge_op_enable = 0;
+	chg->user_charge_soc = 100;
+	chg->smb_charger_online = 0;
+#endif
 
 	chg->regmap = dev_get_regmap(chg->dev->parent, NULL);
 	if (!chg->regmap) {
@@ -2504,6 +2711,13 @@ static int smb2_probe(struct platform_device *pdev)
 
 	device_init_wakeup(chg->dev, true);
 
+#if defined(CONFIG_PRODUCT_KUNLUN2)
+	//houzn add
+	REGISTER_AND_INIT_ONTIM_DEBUG_FOR_THIS_DEV();
+#endif
+#ifdef SUPPORT_USER_CHARGE_OP
+	smblib_start_user_health_work(chg);
+#endif
 	pr_info("QPNP SMB2 probed successfully usb:present=%d type=%d batt:present = %d health = %d charge = %d\n",
 		usb_present, chg->real_charger_type,
 		batt_present, batt_health, batt_charge_type);

@@ -28,6 +28,15 @@ enum print_reason {
 	PR_OTG		= BIT(4),
 };
 
+#define SUPPORT_USER_CHARGE_OP
+
+#if defined(CONFIG_PRODUCT_ZAP)
+#define SUPPORT_VENDOR_USB_PLUGIN_AWAKE
+#endif
+
+#if defined(CONFIG_PRODUCT_JD2019)
+#define CUSTOM_IDENTIFY_FLOAT_CHARGER
+#endif
 #define DEFAULT_VOTER			"DEFAULT_VOTER"
 #define USER_VOTER			"USER_VOTER"
 #define PD_VOTER			"PD_VOTER"
@@ -73,6 +82,24 @@ enum print_reason {
 #define OV_VOTER			"OV_VOTER"
 #define FG_ESR_VOTER			"FG_ESR_VOTER"
 #define FCC_STEPPER_VOTER		"FCC_STEPPER_VOTER"
+
+#if defined(CONFIG_PRODUCT_JD2019)
+#if defined(CUSTOM_IDENTIFY_FLOAT_CHARGER)
+#define CUSTOM_ICL_VOTER		"CUSTOM_ICL_VOTER"
+#endif
+#define FCC_GAME_VOTER			"FCC_GAME_VOTER"
+#endif
+
+#if defined(CONFIG_PRODUCT_ZAP)
+#ifdef SUPPORT_VENDOR_USB_PLUGIN_AWAKE
+#define PLUGIN_LOCK_VOTER		"PLUGIN_LOCK_VOTER"
+#endif
+#endif
+
+#ifdef SUPPORT_USER_CHARGE_OP
+#define FCC_USER_CHARGE_OP_VOTER	"FCC_USER_CHARGE_OP_VOTER"
+#define USER_HEALTH_CHARGE_VOTER	"USER_HEALTH_CHARGE_VOTER"
+#endif
 
 #define VCONN_MAX_ATTEMPTS	3
 #define OTG_MAX_ATTEMPTS	3
@@ -316,7 +343,15 @@ struct smb_charger {
 	struct work_struct	legacy_detection_work;
 	struct delayed_work	uusb_otg_work;
 	struct delayed_work	bb_removal_work;
-
+#ifdef SUPPORT_USER_CHARGE_OP
+	struct delayed_work	user_health_charge_work;
+#endif
+#if defined(CONFIG_PRODUCT_JD2019)
+#if defined(CUSTOM_IDENTIFY_FLOAT_CHARGER)
+	struct delayed_work	lenovo_chg_flow_work;
+#endif
+	struct delayed_work     reset_max_fcc_current_work;
+#endif
 	/* cached status */
 	int			voltage_min_uv;
 	int			voltage_max_uv;
@@ -329,6 +364,14 @@ struct smb_charger {
 	int			dcp_icl_ua;
 	int			fake_capacity;
 	int			fake_batt_status;
+#if defined(CONFIG_PRODUCT_JD2019)
+	bool			start_game_enabled;
+#endif
+#ifdef SUPPORT_USER_CHARGE_OP
+	int			user_charge_op_enable;
+	int			user_charge_soc;
+	int			smb_charger_online;
+#endif
 	bool			step_chg_enabled;
 	bool			sw_jeita_enabled;
 	bool			is_hdc;
@@ -550,6 +593,10 @@ int smblib_set_prop_pr_swap_in_progress(struct smb_charger *chg,
 int smblib_stat_sw_override_cfg(struct smb_charger *chg, bool override);
 void smblib_usb_typec_change(struct smb_charger *chg);
 int smblib_toggle_stat(struct smb_charger *chg, int reset);
+#ifdef SUPPORT_BATTERY_AGE
+int smblib_get_prop_batt_age(struct smb_charger *chg,
+			     union power_supply_propval *val);
+#endif
 
 int smblib_init(struct smb_charger *chg);
 int smblib_deinit(struct smb_charger *chg);

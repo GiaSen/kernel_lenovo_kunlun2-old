@@ -1273,7 +1273,11 @@ static int qpnp_haptics_auto_mode_config(struct hap_chip *chip, int time_ms)
 
 		brake_pat[0] = BRAKE_VMAX;
 		chip->play_mode = HAP_BUFFER;
+#ifdef CONFIG_PRODUCT_ZAP
+		chip->wave_shape = HAP_WAVE_SINE;
+#else
 		chip->wave_shape = HAP_WAVE_SQUARE;
+#endif
 	} else {
 		/* long pattern */
 		ares_cfg.lra_high_z = HAP_LRA_HIGH_Z_OPT1;

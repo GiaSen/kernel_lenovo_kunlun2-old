@@ -14,15 +14,18 @@ qcom,mlp356477_2800mah {
 	/* #mlp356477_2800mah_averaged_MasterSlave_Aug14th2017*/
 	qcom,max-voltage-uv = <4400000>;
 	qcom,fg-cc-cv-threshold-mv = <4390>;
-	qcom,fastchg-current-ma = <4200>;
-	qcom,batt-id-kohm = <82>;
-	qcom,battery-beta = <4250>;
-	qcom,jeita-fcc-ranges = <0   150   560000
-				 151 450  4200000
-				 451 550  2380000>;
-	qcom,jeita-fv-ranges =  <0   150  4150000
-				 151 450  4400000
-				 451 550  4150000>;
+	//qcom,fastchg-current-ma = <3000>;
+	qcom,batt-id-kohm = <47>;
+	qcom,battery-beta = <3380>;
+	qcom,jeita-fcc-ranges = <0    200    800000
+				 			 201  450   3000000
+				 			 451  550   2000000>;
+	qcom,jeita-fv-ranges =  <0   200  4400000
+				 			 201 450  4400000
+				 			 451 550  4100000>;
+	qcom,step-chg-ranges = <3500000  4200000  3000000
+							4201000  4300000  2500000
+							4301000  4400000  2000000>;
 	qcom,battery-type =
 		"mlp356477_2800mah_averaged_masterslave_aug14th2017";
 	qcom,checksum = <0x71B8>;

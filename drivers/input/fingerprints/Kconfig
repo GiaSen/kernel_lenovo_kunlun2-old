@@ -1,0 +1,25 @@
+menuconfig INPUT_FINGERPRINT
+	bool "Fingerprint"
+	help
+	  Say Y here, and a list of supported fingerprint will be displayed.
+	  This option doesn't affect the kernel.
+
+	  If unsure, say Y.
+
+config JD2019_GOODIX_FINGERPRINT
+	tristate "generic goodix fingerprint driver"
+	default n 
+	help
+	add support for goodix fingerprint driver.
+
+config KUNLUN2_FPC_FINGERPRINT
+	tristate "generic fpc fingerprint driver"
+	default n 
+	help
+	add support for fpc fingerprint driver.
+
+config ZAP_GOODIX_FINGERPRINT
+	tristate "generic goodix fingerprint driver"
+	default n 
+	help
+	add support for goodix fingerprint driver.

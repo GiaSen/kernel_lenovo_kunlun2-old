@@ -1055,7 +1055,7 @@ EXPORT_SYMBOL(mipi_dsi_dcs_set_tear_scanline);
 int mipi_dsi_dcs_set_display_brightness(struct mipi_dsi_device *dsi,
 					u16 brightness)
 {
-	u8 payload[2] = { brightness & 0xff, brightness >> 8 };
+	u8 payload[2] = { brightness >> 8, brightness & 0xff };
 	ssize_t err;
 
 	err = mipi_dsi_dcs_write(dsi, MIPI_DCS_SET_DISPLAY_BRIGHTNESS,
@@ -1066,6 +1066,79 @@ int mipi_dsi_dcs_set_display_brightness(struct mipi_dsi_device *dsi,
 	return 0;
 }
 EXPORT_SYMBOL(mipi_dsi_dcs_set_display_brightness);
+
+int mipi_dsi_dcs_set_display_brightness_hbm(struct mipi_dsi_device *dsi,
+					u16 brightness)
+{
+	u8 hbm_en = 0xE0;
+	u8 hbm_dis = 0x20;
+	ssize_t err;
+	if (brightness == 1)
+		err = mipi_dsi_dcs_write(dsi, MIPI_DCS_WRITE_CONTROL_DISPLAY,
+					 &hbm_en, sizeof(hbm_en));
+	else
+		err = mipi_dsi_dcs_write(dsi, MIPI_DCS_WRITE_CONTROL_DISPLAY,
+					 &hbm_dis, sizeof(hbm_dis));
+
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL(mipi_dsi_dcs_set_display_brightness_hbm);
+
+int mipi_dsi_dcs_get_elvss_data(struct mipi_dsi_device *dsi,
+					u8 *val)
+{
+	u8 payload_f0[2] = { 0x5A, 0x5A };
+	u8 payload_b0 = 0x07;
+	ssize_t err;
+
+	err = mipi_dsi_dcs_write(dsi, 0xF0, payload_f0, sizeof(payload_f0));
+	err = mipi_dsi_dcs_write(dsi, 0xB0, &payload_b0, sizeof(payload_b0));
+
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL(mipi_dsi_dcs_get_elvss_data);
+int mipi_dsi_dcs_get_elvss_data_1(struct mipi_dsi_device *dsi,
+					u8 *val)
+{
+	u8 payload_f0_1[2] = { 0xA5, 0xA5 };
+	ssize_t err;
+	err = mipi_dsi_dcs_write(dsi, 0xF0, payload_f0_1, sizeof(payload_f0_1));
+
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+
+int mipi_dsi_dcs_set_elvss_dim_off(struct mipi_dsi_device *dsi,
+					u8 val)
+{
+	u8 payload_f0[2] = { 0x5A, 0x5A };
+	u8 payload_f0_1[2] = { 0xA5, 0xA5 };
+	u8 payload_b7[2] = { 0x01, 0x5B };
+	u8 payload_b0 = 0x07;
+	ssize_t err;
+
+	pr_info("set elvss data:%d\n", val);
+
+	err = mipi_dsi_dcs_write(dsi, 0xF0, payload_f0, sizeof(payload_f0));
+	err = mipi_dsi_dcs_write(dsi, 0xB7, payload_b7, sizeof(payload_b7));
+	err = mipi_dsi_dcs_write(dsi, 0xB0, &payload_b0, sizeof(payload_b0));
+	err = mipi_dsi_dcs_write(dsi, 0xB7, &val, sizeof(val));
+	err = mipi_dsi_dcs_write(dsi, 0xF0, payload_f0_1, sizeof(payload_f0_1));
+
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL(mipi_dsi_dcs_set_elvss_dim_off);
 
 /**
  * mipi_dsi_dcs_get_display_brightness() - gets the current brightness value

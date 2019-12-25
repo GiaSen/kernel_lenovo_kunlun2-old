@@ -22,6 +22,7 @@
 #include <dt-bindings/soc/qcom,tcs-mbox.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include <dt-bindings/clock/qcom,aop-qmp.h>
+#include <generated/autoconf.h>
 
 #define MHZ_TO_MBPS(mhz, w) ((mhz * 1000000 * w) / (1024 * 1024))
 
@@ -38,8 +39,15 @@
 		serial0 = &qupv3_se12_2uart;
 		spi0 = &qupv3_se8_spi;
 		i2c0 = &qupv3_se10_i2c;
+#if defined(CONFIG_PRODUCT_ZAP)
+		i2c1 = &qupv3_se7_i2c;
+#else
 		i2c1 = &qupv3_se3_i2c;
+#endif
 		hsuart0 = &qupv3_se6_4uart;
+#if defined(CONFIG_PRODUCT_KUNLUN2)
+		//hsuart1 = &qupv3_se3_4uart;
+#endif
 	};
 
 	chosen {
@@ -459,10 +467,10 @@
 				compatible = "android,fstab";
 				vendor {
 					compatible = "android,vendor";
-					dev = "/dev/block/platform/soc/1d84000.ufshc/by-name/vendor";
+					dev = "/dev/block/platform/soc/7c4000.sdhci/by-name/vendor";
 					type = "ext4";
 					mnt_flags = "ro,barrier=1,discard";
-					fsmgr_flags = "wait,slotselect,avb";
+					fsmgr_flags = "wait,avb";
 				};
 			};
 		};
@@ -488,7 +496,8 @@
 		removed_region: removed_region@85fc0000 {
 			compatible = "removed-dma-pool";
 			no-map;
-			reg = <0 0x85fc0000 0 0x2f40000>;
+			/*reg = <0 0x85fc0000 0 0x2f40000>;*/
+			reg = <0 0x85fc0000 0 0x4B40000>;
 		};
 
 		pil_camera_mem: camera_region@8ab00000 {
@@ -555,6 +564,12 @@
 			compatible = "shared-dma-pool";
 			no-map;
 			reg = <0 0x9e400000 0 0x1400000>;
+		};
+
+		pstore_mem: pstore_region@0xaff00000 {
+			compatible = "removed-dma-pool";
+			no-map;
+			reg = <0 0xaff00000 0 0x100000>;
 		};
 
 		adsp_mem: adsp_region {
@@ -868,6 +883,8 @@
 			 <&apps_smmu 0x714 0x1>;
 	};
 
+/* commentted by tianzy7 on 2018-9-8, 
+   I don't know what is qbt1000, but goodix_fp need gpio 121 and 122
 	qcom,qbt1000 {
 		compatible = "qcom,qbt1000";
 		clock-names = "core", "iface";
@@ -875,10 +892,10 @@
 		qcom,ipc-gpio = <&tlmm 121 0>;
 		qcom,finger-detect-gpio = <&tlmm 122 0>;
 	};
-
+*/
 	qcom_seecom: qseecom@86d00000 {
 		compatible = "qcom,qseecom";
-		reg = <0x86d00000 0x2200000>;
+		reg = <0x86d00000 0x3E00000>;
 		reg-names = "secapp-region";
 		qcom,hlos-num-ce-hw-instances = <1>;
 		qcom,hlos-ce-hw-instance = <0>;
@@ -953,7 +970,7 @@
 		#thermal-sensor-cells = <1>;
 	};
 
-	timer@0x17c90000{
+	timer@17c90000{
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
@@ -1012,7 +1029,7 @@
 		};
 	};
 
-	restart@10ac000 {
+	restart@c264000 {
 		compatible = "qcom,pshold";
 		reg = <0xC264000 0x4>,
 		      <0x1fd3000 0x4>;
@@ -1124,7 +1141,7 @@
 		#clock-cells = <1>;
 	};
 
-	clock_cpucc: qcom,cpucc@0x17d41000 {
+	clock_cpucc: qcom,cpucc@17d41000 {
 		compatible = "qcom,clk-cpu-osm-sdm670";
 		reg = <0x17d41000 0x1400>,
 			<0x17d43000 0x1400>,
@@ -1261,7 +1278,7 @@
 		};
 	};
 
-	gpi_dma0: qcom,gpi-dma@0x800000 {
+	gpi_dma0: qcom,gpi-dma@800000 {
 		#dma-cells = <5>;
 		compatible = "qcom,gpi-dma";
 		reg = <0x800000 0x60000>;
@@ -1279,7 +1296,7 @@
 		status = "ok";
 	};
 
-	gpi_dma1: qcom,gpi-dma@0xa00000 {
+	gpi_dma1: qcom,gpi-dma@a00000 {
 		#dma-cells = <5>;
 		compatible = "qcom,gpi-dma";
 		reg = <0xa00000 0x60000>;
@@ -2018,7 +2035,7 @@
 		qcom,ipa-napi-enable;
 	};
 
-	ipa_hw: qcom,ipa@01e00000 {
+	ipa_hw: qcom,ipa@1e00000 {
 		compatible = "qcom,ipa";
 		reg = <0x1e00000 0x34000>,
 		      <0x1e04000 0x2c000>;
@@ -2636,7 +2653,7 @@
 			< MHZ_TO_MBPS(1804, 4) >; /* 6881 MB/s */
 	};
 
-	bwmon: qcom,cpu-bwmon {
+	bwmon: qcom,cpu-bwmon@1436400 {
 		compatible = "qcom,bimc-bwmon4";
 		reg = <0x1436400 0x300>, <0x1436300 0x200>;
 		reg-names = "base", "global_base";
@@ -2885,17 +2902,17 @@
 		interrupts = <1 5 4>;
 	};
 
-	gpu_gx_domain_addr: syscon@0x5091508 {
+	gpu_gx_domain_addr: syscon@5091508 {
 		compatible = "syscon";
 		reg = <0x5091508 0x4>;
 	};
 
-	gpu_gx_sw_reset: syscon@0x5091008 {
+	gpu_gx_sw_reset: syscon@5091008 {
 		compatible = "syscon";
 		reg = <0x5091008 0x4>;
 	};
 
-	qfprom: qfprom@0x780000 {
+	qfprom: qfprom@784000 {
 		compatible	= "qcom,qfprom";
 		reg		= <0x00784000 0x1000>;
 		#address-cells	= <1>;
@@ -2914,6 +2931,15 @@
 #include "pm660l.dtsi"
 #include "sdm670-regulator.dtsi"
 #include "sdm670-pinctrl.dtsi"
+#if defined(CONFIG_PRODUCT_ZAP)
+#include "lenovo-zap-pinctrl.dtsi"
+#elif defined(CONFIG_PRODUCT_JD2019)
+#include "lenovo-jd2019-pinctrl.dtsi"
+#include "sdm710-jd2019-goodix.dtsi"
+#elif defined(CONFIG_PRODUCT_KUNLUN2)
+#include "lenovo-kunlun2-pinctrl.dtsi"
+#include "sdm710-kunlun2-fpc.dtsi"
+#endif
 #include "msm-arm-smmu-sdm670.dtsi"
 #include "msm-gdsc-sdm845.dtsi"
 #include "sdm670-pm.dtsi"

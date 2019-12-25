@@ -14,6 +14,7 @@
 #include "sdm670-wsa881x.dtsi"
 #include "sdm670-lpi.dtsi"
 #include <dt-bindings/clock/qcom,audio-ext-clk.h>
+#include <generated/autoconf.h>
 
 &tavil_snd {
 	qcom,msm-mi2s-master = <1>, <1>, <1>, <1>, <1>;
@@ -110,6 +111,14 @@
 		"INT_LDO_H", "INT_MCLK0",
 		"RX_I2S_CLK", "INT_MCLK0",
 		"TX_I2S_CLK", "INT_MCLK0",
+#if defined(CONFIG_PRODUCT_ZAP)
+		"MIC BIAS External1", "Handset Mic",
+		"MIC BIAS External2", "Headset Mic",
+		"MIC BIAS External3", "Secondary Mic",
+		"AMIC1", "MIC BIAS External",
+		"AMIC2", "MIC BIAS External2",
+		"AMIC3", "MIC BIAS External3",
+#else
 		"MIC BIAS External", "Handset Mic",
 		"MIC BIAS External2", "Headset Mic",
 		"MIC BIAS External", "Secondary Mic",
@@ -126,6 +135,7 @@
 		"MIC BIAS External", "Digital Mic4",
 		"MICBIAS_REGULATOR", "VDDA18_L10_REGULATOR",
 		"VDDA18_L10_REGULATOR", "VDD_L1_REGULATOR",
+#endif
 		"SpkrLeft IN", "SPK1 OUT",
 		"SpkrRight IN", "SPK2 OUT",
 		"PDM_IN_RX1", "PDM_OUT_RX1",
@@ -134,31 +144,287 @@
 		"ADC1_IN", "ADC1_OUT",
 		"ADC2_IN", "ADC2_OUT",
 		"ADC3_IN", "ADC3_OUT";
-
 	qcom,msm-mi2s-master = <1>, <1>, <1>, <1>, <1>;
 	qcom,msm-mclk-freq = <9600000>;
 	qcom,msm-mbhc-hphl-swh = <1>;
 	qcom,msm-mbhc-gnd-swh = <1>;
 	qcom,msm-micbias2-ext-cap;
+#if defined(CONFIG_PRODUCT_KUNLUN2)
+        qcom,msm-micbias1-ext-cap;
+#endif
 	qcom,msm-hs-micbias-type = "external";
+	/* huaqin add for JD2019-123 by xudayi at 2018/08/3 start */
+      //qcom,sec-mi2s-gpios = <&sec_mi2s_gpios>;
+	/* huaqin add for JD2019-123 by xudayi at 2018/08/3 end */
+
+#if defined(CONFIG_PRODUCT_ZAP)
+	qcom,msm-mbhc-usbc-audio-supported = <1>;
+	qcom,usbc-analog-force_detect_gpio = <&cdc_hs_det_default_gpio>;
+	qcom,usbc-analog-en1-gpio = <&wcd_usbc_analog_en1_gpio>;
+	qcom,usbc-analog-en2-gpio = <&wcd_usbc_analog_en2_gpio_zap>;
+	/*qcom,usbc-analog-en2-gpio = <&tlmm 50 0>;
+	pinctrl-names = "aud_active", "aud_sleep";
+	pinctrl-0 = <&wcd_usbc_analog_en2_active>;
+	pinctrl-1 = <&wcd_usbc_analog_en2_idle>;*/
+#endif
+
 	qcom,cdc-pdm-gpios = <&cdc_pdm_gpios>;
 	qcom,cdc-comp-gpios = <&cdc_comp_gpios>;
 	qcom,cdc-dmic-gpios = <&cdc_dmic_gpios>;
+#if defined(CONFIG_PRODUCT_ZAP)
+	qcom,pri-mi2s-gpios = <&pri_mi2s_gpios>;
+	qcom,sec-mi2s-gpios = <&sec_mi2s_gpios>;
+	qcom,tert-mi2s-gpios = <&tert_mi2s_gpios>;
+#endif
 
 	asoc-codec = <&stub_codec>, <&msm_digital_codec>,
 		     <&pmic_analog_codec>, <&msm_sdw_codec>,
-		     <&ext_disp_audio_codec>;
+		     /* huaqin add for JD2019-123 by xudayi at 2018/08/31 start */
+		     <&ext_disp_audio_codec>,
+#if defined(CONFIG_PRODUCT_ZAP)
+		     <&cs35l41>, <&cs35l41_r>, <&debussy>;
+#else
+		     <&cs35l41>, <&cs35l41_r>;
+#endif
+		     /* huaqin add for JD2019-123 by xudayi at 2018/08/31 end */
 	asoc-codec-names = "msm-stub-codec.1", "msm-dig-codec",
 			   "analog-codec", "msm_sdw_codec",
-			   "msm-ext-disp-audio-codec-rx";
-
-	qcom,wsa-max-devs = <2>;
+			   /* huaqin add for JD2019-123 by xudayi at 2018/08/31 start */
+			   "msm-ext-disp-audio-codec-rx",
+#if defined(CONFIG_PRODUCT_ZAP)
+		     "cs35l41", "cs35l41_r", "debussy";
+#else
+			   "cs35l41", "cs35l41_r";
+#endif
+			   /* huaqin add for JD2019-123 by xudayi at 2018/08/31 end */
+	/* huaqin add for JD2019-111 by xudayi at 2018/08/30 start */
+	qcom,wsa-disable;
+	qcom,wsa-max-devs = <0>;
+	/* huaqin add for JD2019-111 by xudayi at 2018/08/30 end */
 	qcom,wsa-devs = <&wsa881x_211_en>, <&wsa881x_212_en>,
 			<&wsa881x_213_en>, <&wsa881x_214_en>;
 	qcom,wsa-aux-dev-prefix = "SpkrLeft", "SpkrRight",
 				  "SpkrLeft", "SpkrRight";
 };
 
+
+/* huaqin add for JD2019-123 by xudayi at 2018/08/31 start */
+&tlmm {
+	cs35l41_reset_default: cs35l41_reset_default {
+		config {
+#if defined(CONFIG_PRODUCT_ZAP)
+			pins = "gpio54";
+#else
+			pins = "gpio93";
+#endif
+			output-low;
+			bias-pull-up;
+			drive-strength = <2>;
+		};
+	};
+
+	/* huaqin add for JD2019-303 by xudayi at 2018/09/12 start */
+	cs35l41_irq_default: cs35l41_irq_default {
+		config {
+#if defined(CONFIG_PRODUCT_ZAP)
+			pins = "gpio123";
+#else
+			pins = "gpio26";
+#endif
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+	};
+	/* huaqin add for JD2019-303 by xudayi at 2018/09/12 end */
+
+	cs35l41_r_reset_default: cs35l41_r_reset_default {
+		config {
+#if defined(CONFIG_PRODUCT_ZAP)
+			pins = "gpio4";
+#else
+			pins = "gpio50";
+#endif
+			output-low;
+			bias-pull-up;
+			drive-strength = <2>;
+		};
+	};
+	/* huaqin add for JD2019-303 by xudayi at 2018/09/12 start */
+	cs35l41_r_irq_default: cs35l41_r_irq_default {
+		config {
+#if defined(CONFIG_PRODUCT_ZAP)
+			pins = "gpio26";
+#else
+			pins = "gpio49";
+#endif
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+	};
+	/* huaqin add for JD2019-303 by xudayi at 2018/09/12 end */
+#if defined(CONFIG_PRODUCT_ZAP)
+	igo1201_reset_default: igo1201_reset_default {
+		config {
+			pins = "gpio79";
+			output-low;
+			bias-pull-up;
+			drive-strength = <2>;
+		};
+	};
+
+	aud_soc_mode_sel_default: aud_soc_mode_sel_default {
+		config {
+			pins = "gpio5";
+			output-low;
+			bias-pull-up;
+			drive-strength = <2>;
+		};
+	};
+
+	power_en_gpio_default: power_en_gpio_default {
+		config {
+			pins = "gpio27";
+			output-low;
+			bias-pull-up;
+			drive-strength = <2>;
+		};
+	};
+#endif
+};
+
+#if defined(CONFIG_PRODUCT_ZAP)
+&qupv3_se7_i2c {
+        status = "okay";
+
+	/* Speaker Amp */
+	cs35l41:cs35l41@40 {
+		status = "okay";
+		compatible = "cirrus,cs35l41";
+		reg = <0x40>;
+
+		reset-gpios = <&tlmm 54 0>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <123 0>;
+		interrupt-names = "amp_l_irq";
+
+		cirrus,right-channel-amp; /* Set Speaker Amp as default Right channel */
+		cirrus,boost-peak-milliamp = <4500>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <15>;
+		cirrus,asp-sdout-hiz = <0x3>;
+
+		pinctrl-names = "reset";
+		pinctrl-0 = <&cs35l41_reset_default>;
+		cirrus,gpio-config2 {
+			cirrus,gpio-type = <1>; /* 0 indicate gpio, 1 indicate interrupt */
+			cirrus,gpio-src-select = <0x4>;
+			cirrus,gpio-output-enable;
+		};
+ 	};
+
+	/* Receiver Amp */
+	cs35l41_r:cs35l41_r@41 {
+		status = "okay";
+		compatible = "cirrus,cs35l41";
+		reg = <0x41>;
+
+		reset-gpios = <&tlmm 4 0>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <26 0>;
+		interrupt-names = "amp_r_irq";
+
+		cirrus,boost-peak-milliamp = <4500>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <15>;
+		cirrus,asp-sdout-hiz = <0x3>;
+		cirrus,dsp-recovery;
+		pinctrl-names = "reset";
+		pinctrl-0 = <&cs35l41_r_reset_default>;
+		cirrus,gpio-config2 {
+			cirrus,gpio-type = <1>; /* 0 indicate gpio, 1 indicate interrupt */
+			cirrus,gpio-src-select = <0x4>;
+			cirrus,gpio-output-enable;
+		};
+	};
+
+	debussy:debussy@5d {
+			status = "okay";
+			compatible = "intelligo,debussy";
+			reset-gpios = <&tlmm 79 0>;
+			deb-gpios = <&tlmm 40 0>;
+			aud_soc_mode_sel-gpios = <&tlmm 5 0>;
+			power_en_gpio-gpios = <&tlmm 27 0>;
+			reg = <0x5d>;
+			interrupt-parent = <&tlmm>;
+			interrupts = <40 IRQ_TYPE_EDGE_RISING>;
+			debounce = <5>;
+			clock-names = "igo_mclk";
+			clocks = <&clock_rpmh RPMH_LN_BB_CLK2>;
+
+			pinctrl-names = "reset", "aud_soc_mode_sel", "power_en_gpio";
+			pinctrl-0 = <&igo1201_reset_default>;
+			pinctrl-1 = <&aud_soc_mode_sel_default>;
+			pinctrl-2 = <&power_en_gpio_default>;
+	};
+};
+#else
+&qupv3_se3_i2c {
+        status = "okay";
+
+	/* Speaker Amp */
+	cs35l41:cs35l41@43 {
+		status = "okay";
+		compatible = "cirrus,cs35l41";
+		reg = <0x43>;
+
+		reset-gpios = <&tlmm 93 0>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <26 0>;
+		interrupt-names = "amp_l_irq";
+
+		cirrus,right-channel-amp; /* Set Speaker Amp as default Right channel */
+		cirrus,boost-peak-milliamp = <4500>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <15>;
+		cirrus,asp-sdout-hiz = <0x3>;
+
+		pinctrl-names = "reset";
+		pinctrl-0 = <&cs35l41_reset_default>;
+		cirrus,gpio-config2 {
+			cirrus,gpio-type = <1>; /* 0 indicate gpio, 1 indicate interrupt */
+			cirrus,gpio-src-select = <0x4>;
+			cirrus,gpio-output-enable;
+		};
+	};
+
+	/* Receiver Amp */
+	cs35l41_r:cs35l41_r@40 {
+		status = "okay";
+		compatible = "cirrus,cs35l41";
+		reg = <0x40>;
+
+		reset-gpios = <&tlmm 50 0>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <49 0>;
+		interrupt-names = "amp_r_irq";
+
+		cirrus,boost-peak-milliamp = <4500>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <15>;
+		cirrus,asp-sdout-hiz = <0x3>;
+
+		pinctrl-names = "reset";
+		pinctrl-0 = <&cs35l41_r_reset_default>;
+		cirrus,gpio-config2 {
+			cirrus,gpio-type = <1>; /* 0 indicate gpio, 1 indicate interrupt */
+			cirrus,gpio-src-select = <0x4>;
+			cirrus,gpio-output-enable;
+		};
+	};
+};
+#endif
+
+/* huaqin add for JD2019-123 by xudayi at 2018/08/31 end */
 &soc {
 	wcd_usbc_analog_en1_gpio: msm_cdc_pinctrl_usbc_audio_en1 {
 		compatible = "qcom,msm-cdc-pinctrl";
@@ -166,7 +432,29 @@
 		pinctrl-0 = <&wcd_usbc_analog_en1_active>;
 		pinctrl-1 = <&wcd_usbc_analog_en1_idle>;
 	};
+#if defined(CONFIG_PRODUCT_ZAP)
+	cdc_hs_det_default_gpio: msm_cdc_pinctrl_hs_det_default {
+		compatible = "qcom,msm-cdc-pinctrl";
+		pinctrl-names = "aud_active", "aud_sleep";
+		pinctrl-0 = <&cdc_hs_det_active>;
+		pinctrl-1 = <&cdc_hs_det_idle>;
+	};
 
+	wcd_usbc_analog_en2_gpio_zap: msm_cdc_pinctrl_usbc_audio_en2 {
+		compatible = "qcom,msm-cdc-pinctrl";
+		pinctrl-names = "aud_active", "aud_sleep";
+		pinctrl-0 = <&wcd_usbc_analog_en2_active>;
+		pinctrl-1 = <&wcd_usbc_analog_en2_idle>;
+	};
+
+	pri_mi2s_gpios: pri_mi2s_pinctrl {
+		status = "ok";
+		compatible = "qcom,msm-cdc-pinctrl";
+		pinctrl-names = "aud_active", "aud_sleep";
+		pinctrl-0 = <&pri_mi2s_active &pri_mi2s_ws_active>;
+		pinctrl-1 = <&pri_mi2s_sleep &pri_mi2s_ws_sleep>;
+	};
+#endif
 	cdc_pdm_gpios: cdc_pdm_pinctrl {
 		compatible = "qcom,msm-cdc-pinctrl";
 		pinctrl-names = "aud_active", "aud_sleep";
@@ -199,27 +487,45 @@
 
 	cdc_sdw_gpios: sdw_clk_data_pinctrl {
 		compatible = "qcom,msm-cdc-pinctrl";
+#ifdef CONFIG_PRODUCT_JD2019
 		pinctrl-names = "aud_active", "aud_sleep";
 		pinctrl-0 = <&sdw_clk_active &sdw_data_active>;
 		pinctrl-1 = <&sdw_clk_sleep &sdw_data_sleep>;
+#endif
 	};
+
+	/* huaqin add for JD2019-123 by xudayi at 2018/08/3 start */
+	sec_mi2s_gpios: sec_pinctrl {
+		compatible = "qcom,msm-cdc-pinctrl";
+		pinctrl-names = "aud_active", "aud_sleep";
+		pinctrl-0 = <&sec_mi2s_active &sec_mi2s_data0_active
+			&sec_mi2s_data1_active>;
+		pinctrl-1 = <&sec_mi2s_sleep &sec_mi2s_data0_sleep
+			&sec_mi2s_data1_sleep>;
+		qcom,lpi-gpios;
+	};
+	/* huaqin add for JD2019-123 by xudayi at 2018/08/3 end */
 
 	wsa_spkr_en1: wsa_spkr_en1_pinctrl {
 		compatible = "qcom,msm-cdc-pinctrl";
+#ifdef CONFIG_PRODUCT_JD2019
 		pinctrl-names = "aud_active", "aud_sleep";
 		pinctrl-0 = <&spkr_1_sd_n_active>;
 		pinctrl-1 = <&spkr_1_sd_n_sleep>;
+#endif
 	};
 
 	wsa_spkr_en2: wsa_spkr_en2_pinctrl {
 		compatible = "qcom,msm-cdc-pinctrl";
+#ifdef CONFIG_PRODUCT_JD2019
 		pinctrl-names = "aud_active", "aud_sleep";
 		pinctrl-0 = <&spkr_2_sd_n_active>;
 		pinctrl-1 = <&spkr_2_sd_n_sleep>;
+#endif
 	};
 
 	msm_sdw_codec: msm-sdw-codec@62ec1000 {
-		status = "okay";
+		status = "disabled";
 		compatible = "qcom,msm-sdw-codec";
 		reg = <0x62ec1000 0x0>;
 		interrupts = <0 88 0>;
@@ -332,7 +638,11 @@
 	};
 
 	tert_mi2s_gpios: tert_mi2s_pinctrl {
+#if defined(CONFIG_PRODUCT_ZAP)
+		status = "okay";
+#else
 		status = "disabled";
+#endif
 		compatible = "qcom,msm-cdc-pinctrl";
 		pinctrl-names = "aud_active", "aud_sleep";
 		pinctrl-0 = <&ter_i2s_data0_active &ter_i2s_data1_active
@@ -372,6 +682,15 @@
 			clock-names = "aqt_clk";
 			clocks = <&clock_audio_lnbb AUDIO_PMIC_LNBB_CLK>;
 		};
+	};
+	msm-cirrus-playback {
+		compatible = "cirrus,msm-cirrus-playback";
+		usecase-names = "Playback", "Voice", "Ringtone", "Notification";
+	};
+
+	msm-cirrus-playback-addcontrol {
+		compatible = "cirrus,msm-cirrus-playback-addcontrol";
+		usecase-names = "Playback", "Voice", "Ringtone", "Notification";
 	};
 };
 

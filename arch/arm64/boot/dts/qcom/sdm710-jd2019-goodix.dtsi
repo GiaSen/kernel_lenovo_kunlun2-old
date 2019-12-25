@@ -1,0 +1,105 @@
+/* Huaqin modify for JD2019-114 by zhaojunhai1 at 2018/8/20 end */
+
+&soc{
+    goodix_fp {
+        compatible = "goodix,fingerprint";
+        interrupt-parent = <&tlmm>;
+        fp-gpio-irq = <&tlmm 121 0x00>;
+        fp-gpio-reset = <&tlmm 122 0x00>;
+        fp-gpio-power = <&tlmm 12 0x00>;
+
+        pinctrl-names = "goodix_active","goodix_sleep";
+        pinctrl-0 = <&goodix_reset_active &goodix_irq_active &goodix_power_active>;
+        pinctrl-1 = <&goodix_reset_sleep &goodix_irq_sleep &goodix_power_sleep>;
+
+        status = "okay";
+    };
+};
+
+&tlmm{
+    goodix_reset {
+    goodix_reset_active: goodix_reset_active {
+                         mux {
+                             pins = "gpio122";
+                             function = "gpio";
+                         };
+
+                         config {
+                             pins = "gpio122";
+                             drive-strength = <6>;
+                             bias-pull-up;
+                         };
+                     };
+
+    goodix_reset_sleep: goodix_reset_sleep {
+                        mux {
+                            pins = "gpio122";
+                            function = "gpio";
+                        };
+
+                        config {
+                            pins = "gpio122";
+                            drive-strength = <6>;
+                            bias-pull-up;
+                        };
+                    };
+    };
+
+    goodix_irq {
+    goodix_irq_active: goodix_irq_active {
+                       mux {
+                           pins = "gpio121";
+                           function = "gpio";
+                       };
+
+                       config {
+                           pins = "gpio121";
+                           drive-strength = <6>;
+                           bias-disable;
+                       };
+                   };
+
+    goodix_irq_sleep: goodix_irq_sleep {
+                      mux {
+                          pins = "gpio121";
+                          function = "gpio";
+                      };
+
+                      config {
+                          pins = "gpio121";
+                          drive-strength = <6>;
+                          bias-disable;
+                      };
+                  };
+    };
+    goodix_power {
+    goodix_power_active: goodix_power_active {
+                         mux {
+                             pins = "gpio12";
+                             function = "gpio";
+                         };
+
+                         config {
+                             pins = "gpio12";
+                             drive-strength = <6>;
+                             bias-disable;
+                         };
+                     };
+
+    goodix_power_sleep: goodix_power_sleep {
+                        mux {
+                            pins = "gpio12";
+                            function = "gpio";
+                        };
+
+                        config {
+                            pins = "gpio12";
+                            drive-strength = <6>;
+                            bias-disable;
+                        };
+                    };
+    };
+};
+
+
+

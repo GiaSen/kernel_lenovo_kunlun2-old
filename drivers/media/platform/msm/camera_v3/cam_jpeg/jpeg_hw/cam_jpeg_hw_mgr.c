@@ -258,7 +258,7 @@ static int cam_jpeg_insert_cdm_change_base(
 	struct cam_jpeg_hw_ctx_data *ctx_data,
 	struct cam_jpeg_hw_mgr *hw_mgr)
 {
-	int rc = 0;
+	int rc;
 	uint32_t dev_type;
 	struct cam_cdm_bl_request *cdm_cmd;
 	uint32_t size;

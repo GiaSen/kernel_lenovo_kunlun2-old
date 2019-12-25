@@ -19,6 +19,15 @@
 #include <dt-bindings/clock/qcom,rpmh.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include "sdm670-qrd-sku2.dtsi"
+#include <generated/autoconf.h>
+
+#if defined(CONFIG_PRODUCT_ZAP)
+#include "lenovo-zap.dtsi"
+#elif defined(CONFIG_PRODUCT_JD2019)
+#include "lenovo-jd2019.dtsi"
+#elif defined(CONFIG_PRODUCT_KUNLUN2)
+#include "lenovo-kunlun2.dtsi"
+#endif
 
 / {
 	model = "Qualcomm Technologies, Inc. SDM710 PM660 + PM660L QRD SKU2";
