@@ -49,6 +49,7 @@
 #include <soc/qcom/service-notifier.h>
 #include <soc/qcom/socinfo.h>
 #include <soc/qcom/ramdump.h>
+#include <linux/thermal.h>
 
 #include "wlan_firmware_service_v01.h"
 
@@ -286,6 +287,7 @@ enum icnss_driver_state {
 	ICNSS_DRIVER_UNLOADING,
 	ICNSS_REJUVENATE,
 	ICNSS_MODE_ON,
+	ICNSS_BLOCK_SHUTDOWN,
 };
 
 struct ce_irq_list {
@@ -475,6 +477,10 @@ static struct icnss_priv {
 	struct mutex dev_lock;
 	uint32_t fw_error_fatal_irq;
 	uint32_t fw_early_crash_irq;
+	struct completion unblock_shutdown;
+	struct thermal_cooling_device *tcdev;
+	unsigned long curr_thermal_state;
+	unsigned long max_thermal_state;
 } *penv;
 
 #ifdef CONFIG_ICNSS_DEBUG
@@ -1164,6 +1170,21 @@ bool icnss_is_fw_ready(void)
 }
 EXPORT_SYMBOL(icnss_is_fw_ready);
 
+void icnss_block_shutdown(bool status)
+{
+	if (!penv)
+		return;
+
+	if (status) {
+		set_bit(ICNSS_BLOCK_SHUTDOWN, &penv->state);
+		reinit_completion(&penv->unblock_shutdown);
+	} else {
+		clear_bit(ICNSS_BLOCK_SHUTDOWN, &penv->state);
+		complete(&penv->unblock_shutdown);
+	}
+}
+EXPORT_SYMBOL(icnss_block_shutdown);
+
 bool icnss_is_fw_down(void)
 {
 	if (!penv)
@@ -1307,6 +1328,7 @@ static int wlfw_msa_mem_info_send_sync_msg(void)
 	struct wlfw_msa_info_req_msg_v01 req;
 	struct wlfw_msa_info_resp_msg_v01 resp;
 	struct msg_desc req_desc, resp_desc;
+	uint64_t max_mapped_addr;
 
 	if (!penv || !penv->wlfw_clnt)
 		return -ENODEV;
@@ -1353,9 +1375,23 @@ static int wlfw_msa_mem_info_send_sync_msg(void)
 		goto out;
 	}
 
+	max_mapped_addr = penv->msa_pa + penv->msa_mem_size;
 	penv->stats.msa_info_resp++;
 	penv->nr_mem_region = resp.mem_region_info_len;
 	for (i = 0; i < resp.mem_region_info_len; i++) {
+
+		if (resp.mem_region_info[i].size > penv->msa_mem_size ||
+		    resp.mem_region_info[i].region_addr >= max_mapped_addr ||
+		    resp.mem_region_info[i].region_addr < penv->msa_pa ||
+		    resp.mem_region_info[i].size +
+		    resp.mem_region_info[i].region_addr > max_mapped_addr) {
+			icnss_pr_dbg("Received out of range Addr: 0x%llx Size: 0x%x\n",
+					resp.mem_region_info[i].region_addr,
+					resp.mem_region_info[i].size);
+			ret = -EINVAL;
+			goto fail_unwind;
+		}
+
 		penv->mem_region[i].reg_addr =
 			resp.mem_region_info[i].region_addr;
 		penv->mem_region[i].size =
@@ -1370,6 +1406,8 @@ static int wlfw_msa_mem_info_send_sync_msg(void)
 
 	return 0;
 
+fail_unwind:
+	memset(&penv->mem_region[0], 0, sizeof(penv->mem_region[0]) * i);
 out:
 	penv->stats.msa_info_err++;
 	ICNSS_QMI_ASSERT();
@@ -2325,16 +2363,20 @@ static int icnss_pd_restart_complete(struct icnss_priv *priv)
 
 	icnss_hw_power_on(priv);
 
+	icnss_block_shutdown(true);
+
 	ret = priv->ops->reinit(&priv->pdev->dev);
 	if (ret < 0) {
 		icnss_pr_err("Driver reinit failed: %d, state: 0x%lx\n",
 			     ret, priv->state);
 		if (!priv->allow_recursive_recovery)
 			ICNSS_ASSERT(false);
+		icnss_block_shutdown(false);
 		goto out_power_off;
 	}
 
 out:
+	icnss_block_shutdown(false);
 	clear_bit(ICNSS_SHUTDOWN_DONE, &penv->state);
 	return 0;
 
@@ -2376,6 +2418,115 @@ static int icnss_driver_event_fw_ready_ind(void *data)
 out:
 	return ret;
 }
+
+static int icnss_tcdev_get_max_state(struct thermal_cooling_device *tcdev,
+					unsigned long *thermal_state)
+{
+	struct icnss_priv *priv = tcdev->devdata;
+
+	*thermal_state = priv->max_thermal_state;
+
+	return 0;
+}
+
+
+static int icnss_tcdev_get_cur_state(struct thermal_cooling_device *tcdev,
+					unsigned long *thermal_state)
+{
+	struct icnss_priv *priv = tcdev->devdata;
+
+	*thermal_state = priv->curr_thermal_state;
+
+	return 0;
+}
+
+
+static int icnss_tcdev_set_cur_state(struct thermal_cooling_device *tcdev,
+					unsigned long thermal_state)
+{
+	struct icnss_priv *priv = tcdev->devdata;
+	struct device *dev = &priv->pdev->dev;
+	int ret = 0;
+
+	priv->curr_thermal_state = thermal_state;
+
+	if (!priv->ops || !priv->ops->set_therm_state)
+		return 0;
+
+	icnss_pr_vdbg("Cooling device set current state: %ld",
+							thermal_state);
+
+	ret = priv->ops->set_therm_state(dev, thermal_state);
+
+	if (ret)
+		icnss_pr_err("Setting Current Thermal State Failed: %d\n", ret);
+
+	return 0;
+}
+
+static struct thermal_cooling_device_ops icnss_cooling_ops = {
+	.get_max_state = icnss_tcdev_get_max_state,
+	.get_cur_state = icnss_tcdev_get_cur_state,
+	.set_cur_state = icnss_tcdev_set_cur_state,
+};
+
+int icnss_thermal_register(struct device *dev, unsigned long max_state)
+{
+	struct icnss_priv *priv = dev_get_drvdata(dev);
+	int ret = 0;
+
+	priv->max_thermal_state = max_state;
+
+	if (of_find_property(dev->of_node, "#cooling-cells", NULL)) {
+		priv->tcdev = thermal_of_cooling_device_register(dev->of_node,
+						"icnss", priv,
+						&icnss_cooling_ops);
+		if (IS_ERR_OR_NULL(priv->tcdev)) {
+			ret = PTR_ERR(priv->tcdev);
+			icnss_pr_err("Cooling device register failed: %d\n",
+								ret);
+		} else {
+			icnss_pr_vdbg("Cooling device registered");
+		}
+	} else {
+		icnss_pr_dbg("Cooling device registration not supported");
+		ret = -EOPNOTSUPP;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(icnss_thermal_register);
+
+void icnss_thermal_unregister(struct device *dev)
+{
+	struct icnss_priv *priv = dev_get_drvdata(dev);
+
+	if (!IS_ERR_OR_NULL(priv->tcdev))
+		thermal_cooling_device_unregister(priv->tcdev);
+
+	priv->tcdev = NULL;
+}
+EXPORT_SYMBOL(icnss_thermal_unregister);
+
+int icnss_get_curr_therm_state(struct device *dev,
+					unsigned long *thermal_state)
+{
+	struct icnss_priv *priv = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (IS_ERR_OR_NULL(priv->tcdev)) {
+		ret = PTR_ERR(priv->tcdev);
+		icnss_pr_err("Get current thermal state failed: %d\n", ret);
+		return ret;
+	}
+
+	icnss_pr_vdbg("Cooling device current state: %ld",
+					priv->curr_thermal_state);
+
+	*thermal_state = priv->curr_thermal_state;
+	return ret;
+}
+EXPORT_SYMBOL(icnss_get_curr_therm_state);
 
 static int icnss_driver_event_register_driver(void *data)
 {
@@ -2436,8 +2587,13 @@ static int icnss_driver_event_unregister_driver(void *data)
 	}
 
 	set_bit(ICNSS_DRIVER_UNLOADING, &penv->state);
+
+	icnss_block_shutdown(true);
+
 	if (penv->ops)
 		penv->ops->remove(&penv->pdev->dev);
+
+	icnss_block_shutdown(false);
 
 	clear_bit(ICNSS_DRIVER_UNLOADING, &penv->state);
 	clear_bit(ICNSS_DRIVER_PROBED, &penv->state);
@@ -4047,6 +4203,9 @@ static int icnss_stats_show_state(struct seq_file *s, struct icnss_priv *priv)
 			continue;
 		case ICNSS_DRIVER_UNLOADING:
 			seq_puts(s, "DRIVER UNLOADING");
+			continue;
+		case ICNSS_BLOCK_SHUTDOWN:
+			seq_puts(s, "BLOCK SHUTDOWN");
 			continue;
 		case ICNSS_MODE_ON:
 			seq_puts(s, "MODE ON DONE");

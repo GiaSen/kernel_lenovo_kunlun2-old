@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -294,7 +294,6 @@ static int bg_powerup(const struct subsys_desc *subsys)
 			__func__, bg_data->status_irq, ret);
 			return ret;
 	}
-	disable_irq(bg_data->status_irq);
 
 	/* Enable status and err fatal irqs */
 	ret = pil_boot(&bg_data->desc);
@@ -303,7 +302,6 @@ static int bg_powerup(const struct subsys_desc *subsys)
 			"%s: BG PIL Boot failed\n", __func__);
 		return ret;
 	}
-	enable_irq(bg_data->status_irq);
 	ret = wait_for_err_ready(bg_data);
 	if (ret) {
 		dev_err(bg_data->desc.dev,

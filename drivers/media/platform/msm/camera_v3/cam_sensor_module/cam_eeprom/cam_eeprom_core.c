@@ -357,7 +357,7 @@ static int32_t cam_eeprom_get_dev_handle(struct cam_eeprom_ctrl_t *e_ctrl,
 	bridge_params.v4l2_sub_dev_flag = 0;
 	bridge_params.media_entity_flag = 0;
 	bridge_params.priv = e_ctrl;
-
+	bridge_params.dev_id = CAM_EEPROM;
 	eeprom_acq_dev.device_handle =
 		cam_create_device_hdl(&bridge_params);
 	e_ctrl->bridge_intf.device_hdl = eeprom_acq_dev.device_handle;
@@ -439,17 +439,32 @@ static int32_t cam_eeprom_parse_memory_map(
 	else if (cmm_hdr->cmd_type == CAMERA_SENSOR_CMD_TYPE_WAIT)
 		validate_size = sizeof(struct cam_cmd_unconditional_wait);
 
-	if (remain_buf_len < validate_size) {
+	if (remain_buf_len < validate_size ||
+	    *num_map >= (MSM_EEPROM_MAX_MEM_MAP_CNT *
+		MSM_EEPROM_MEMORY_MAP_MAX_SIZE)) {
 		CAM_ERR(CAM_EEPROM, "not enough buffer");
 		return -EINVAL;
 	}
 	switch (cmm_hdr->cmd_type) {
 	case CAMERA_SENSOR_CMD_TYPE_I2C_RNDM_WR:
 		i2c_random_wr = (struct cam_cmd_i2c_random_wr *)cmd_buf;
+
+		if (i2c_random_wr->header.count == 0 ||
+		    i2c_random_wr->header.count >= MSM_EEPROM_MAX_MEM_MAP_CNT ||
+		    (size_t)*num_map >= ((MSM_EEPROM_MAX_MEM_MAP_CNT *
+				MSM_EEPROM_MEMORY_MAP_MAX_SIZE) -
+				i2c_random_wr->header.count)) {
+			CAM_ERR(CAM_EEPROM, "OOB Error");
+			return -EINVAL;
+		}
 		cmd_length_in_bytes   = sizeof(struct cam_cmd_i2c_random_wr) +
 			((i2c_random_wr->header.count - 1) *
 			sizeof(struct i2c_random_wr_payload));
 
+		if (cmd_length_in_bytes > remain_buf_len) {
+			CAM_ERR(CAM_EEPROM, "Not enough buffer remaining");
+			return -EINVAL;
+		}
 		for (cnt = 0; cnt < (i2c_random_wr->header.count);
 			cnt++) {
 			map[*num_map + cnt].page.addr =
@@ -472,6 +487,11 @@ static int32_t cam_eeprom_parse_memory_map(
 		i2c_cont_rd = (struct cam_cmd_i2c_continuous_rd *)cmd_buf;
 		cmd_length_in_bytes = sizeof(struct cam_cmd_i2c_continuous_rd);
 
+		if (i2c_cont_rd->header.count >= U32_MAX - data->num_data) {
+			CAM_ERR(CAM_EEPROM,
+				"int overflow on eeprom memory block");
+			return -EINVAL;
+		}
 		map[*num_map].mem.addr = i2c_cont_rd->reg_addr;
 		map[*num_map].mem.addr_type = i2c_cont_rd->header.addr_type;
 		map[*num_map].mem.data_type = i2c_cont_rd->header.data_type;
@@ -590,28 +610,32 @@ static int32_t cam_eeprom_init_pkt_parser(struct cam_eeprom_ctrl_t *e_ctrl,
 		cmd_buf = (uint32_t *)generic_pkt_addr;
 		if (!cmd_buf) {
 			CAM_ERR(CAM_EEPROM, "invalid cmd buf");
-			return -EINVAL;
+			rc = -EINVAL;
+			goto rel_cmd_buf;
 		}
 
 		if ((pkt_len < sizeof(struct common_header)) ||
 			(cmd_desc[i].offset > (pkt_len -
 			sizeof(struct common_header)))) {
 			CAM_ERR(CAM_EEPROM, "Not enough buffer");
-			return -EINVAL;
+			rc = -EINVAL;
+			goto rel_cmd_buf;
 		}
 		remain_len = pkt_len - cmd_desc[i].offset;
 		cmd_buf += cmd_desc[i].offset / sizeof(uint32_t);
 
 		if (total_cmd_buf_in_bytes > remain_len) {
 			CAM_ERR(CAM_EEPROM, "Not enough buffer for command");
-			return -EINVAL;
+			rc = -EINVAL;
+			goto rel_cmd_buf;
 		}
 		/* Loop through multiple cmd formats in one cmd buffer */
 		while (processed_cmd_buf_in_bytes < total_cmd_buf_in_bytes) {
 			if ((remain_len - processed_cmd_buf_in_bytes) <
 				sizeof(struct common_header)) {
 				CAM_ERR(CAM_EEPROM, "Not enough buf");
-				return -EINVAL;
+				rc = -EINVAL;
+				goto rel_cmd_buf;
 			}
 			cmm_hdr = (struct common_header *)cmd_buf;
 			switch (cmm_hdr->cmd_type) {
@@ -620,7 +644,8 @@ static int32_t cam_eeprom_init_pkt_parser(struct cam_eeprom_ctrl_t *e_ctrl,
 				if ((remain_len - processed_cmd_buf_in_bytes) <
 					sizeof(struct cam_cmd_i2c_info)) {
 					CAM_ERR(CAM_EEPROM, "Not enough buf");
-					return -EINVAL;
+					rc = -EINVAL;
+					goto rel_cmd_buf;
 				}
 				/* Configure the following map slave address */
 				map[num_map + 1].saddr = i2c_info->slave_addr;
@@ -646,7 +671,7 @@ static int32_t cam_eeprom_init_pkt_parser(struct cam_eeprom_ctrl_t *e_ctrl,
 					sizeof(uint32_t);
 				if (rc) {
 					CAM_ERR(CAM_EEPROM, "Failed");
-					return rc;
+					goto rel_cmd_buf;
 				}
 				break;
 			case CAMERA_SENSOR_CMD_TYPE_I2C_RNDM_WR:
@@ -668,7 +693,18 @@ static int32_t cam_eeprom_init_pkt_parser(struct cam_eeprom_ctrl_t *e_ctrl,
 			}
 		}
 		e_ctrl->cal_data.num_map = num_map + 1;
+		if (cam_mem_put_cpu_buf(cmd_desc[i].mem_handle))
+			CAM_WARN(CAM_EEPROM, "Failed to put cpu buf: %d",
+				cmd_desc[i].mem_handle);
 	}
+
+	return rc;
+
+rel_cmd_buf:
+	if (cam_mem_put_cpu_buf(cmd_desc[i].mem_handle))
+		CAM_WARN(CAM_EEPROM, "Failed to put cpu buf: %d",
+			cmd_desc[i].mem_handle);
+
 	return rc;
 }
 
@@ -710,7 +746,8 @@ static int32_t cam_eeprom_get_cal_data(struct cam_eeprom_ctrl_t *e_ctrl,
 			}
 			if (buf_size <= io_cfg->offsets[0]) {
 				CAM_ERR(CAM_EEPROM, "Not enough buffer");
-				return -EINVAL;
+				rc = -EINVAL;
+				goto rel_cmd_buf;
 			}
 
 			remain_len = buf_size - io_cfg->offsets[0];
@@ -721,26 +758,38 @@ static int32_t cam_eeprom_get_cal_data(struct cam_eeprom_ctrl_t *e_ctrl,
 			if (!read_buffer) {
 				CAM_ERR(CAM_EEPROM,
 					"invalid buffer to copy data");
-				return -EINVAL;
+				rc = -EINVAL;
+				goto rel_cmd_buf;
 			}
 			read_buffer += io_cfg->offsets[0];
 
 			if (remain_len < e_ctrl->cal_data.num_data) {
 				CAM_ERR(CAM_EEPROM,
 					"failed to copy, Invalid size");
-				return -EINVAL;
+				rc = -EINVAL;
+				goto rel_cmd_buf;
 			}
 
 			CAM_DBG(CAM_EEPROM, "copy the data, len:%d",
 				e_ctrl->cal_data.num_data);
 			memcpy(read_buffer, e_ctrl->cal_data.mapdata,
 					e_ctrl->cal_data.num_data);
-
+			if (cam_mem_put_cpu_buf(io_cfg->mem_handle[0]))
+				CAM_WARN(CAM_EEPROM, "Fail in put buffer: 0x%x",
+					io_cfg->mem_handle[0]);
 		} else {
 			CAM_ERR(CAM_EEPROM, "Invalid direction");
 			rc = -EINVAL;
 		}
 	}
+
+	return rc;
+
+rel_cmd_buf:
+	if (cam_mem_put_cpu_buf(io_cfg->mem_handle[0]))
+		CAM_WARN(CAM_EEPROM, "Fail in put buffer : %d",
+			io_cfg->mem_handle[0]);
+
 	return rc;
 }
 
@@ -785,7 +834,8 @@ static int32_t cam_eeprom_pkt_parse(struct cam_eeprom_ctrl_t *e_ctrl, void *arg)
 		CAM_ERR(CAM_EEPROM,
 			"Inval cam_packet strut size: %zu, len_of_buff: %zu",
 			 sizeof(struct cam_packet), pkt_len);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto release_buf;
 	}
 
 	remain_len -= (size_t)dev_config.offset;
@@ -795,7 +845,8 @@ static int32_t cam_eeprom_pkt_parse(struct cam_eeprom_ctrl_t *e_ctrl, void *arg)
 	if (cam_packet_util_validate_packet(csl_packet,
 		remain_len)) {
 		CAM_ERR(CAM_EEPROM, "Invalid packet params");
-		return -EINVAL;
+		rc = -EINVAL;
+		goto release_buf;
 	}
 
 	switch (csl_packet->header.op_code & 0xFFFFFF) {
@@ -805,7 +856,7 @@ static int32_t cam_eeprom_pkt_parse(struct cam_eeprom_ctrl_t *e_ctrl, void *arg)
 					e_ctrl->soc_info.dev->of_node, e_ctrl);
 			if (rc < 0) {
 				CAM_ERR(CAM_EEPROM, "Failed: rc : %d", rc);
-				return rc;
+				goto release_buf;
 			}
 			rc = cam_eeprom_get_cal_data(e_ctrl, csl_packet);
 			vfree(e_ctrl->cal_data.mapdata);
@@ -820,7 +871,7 @@ static int32_t cam_eeprom_pkt_parse(struct cam_eeprom_ctrl_t *e_ctrl, void *arg)
 		if (rc) {
 			CAM_ERR(CAM_EEPROM,
 				"Failed in parsing the pkt");
-			return rc;
+			goto release_buf;
 		}
 
 		e_ctrl->cal_data.mapdata =
@@ -863,7 +914,13 @@ static int32_t cam_eeprom_pkt_parse(struct cam_eeprom_ctrl_t *e_ctrl, void *arg)
 	default:
 		break;
 	}
+
+	if (cam_mem_put_cpu_buf(dev_config.packet_handle))
+		CAM_WARN(CAM_EEPROM, "Put cpu buffer failed : %llu",
+			dev_config.packet_handle);
+
 	return rc;
+
 power_down:
 	cam_eeprom_power_down(e_ctrl);
 memdata_free:
@@ -876,7 +933,12 @@ error:
 	vfree(e_ctrl->cal_data.map);
 	e_ctrl->cal_data.num_data = 0;
 	e_ctrl->cal_data.num_map = 0;
-	e_ctrl->cam_eeprom_state = CAM_EEPROM_INIT;
+	e_ctrl->cam_eeprom_state = CAM_EEPROM_ACQUIRE;
+release_buf:
+	if (cam_mem_put_cpu_buf(dev_config.packet_handle))
+		CAM_WARN(CAM_EEPROM, "Put cpu buffer failed : %llu",
+			dev_config.packet_handle);
+
 	return rc;
 }
 
@@ -954,7 +1016,7 @@ int32_t cam_eeprom_driver_cmd(struct cam_eeprom_ctrl_t *e_ctrl, void *arg)
 			&eeprom_cap,
 			sizeof(struct cam_eeprom_query_cap_t))) {
 			CAM_ERR(CAM_EEPROM, "Failed Copy to User");
-			return -EFAULT;
+			rc = -EFAULT;
 			goto release_mutex;
 		}
 		CAM_DBG(CAM_EEPROM, "eeprom_cap: ID: %d", eeprom_cap.slot_info);

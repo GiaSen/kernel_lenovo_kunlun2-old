@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -4414,7 +4414,7 @@ int ipa3_is_vlan_mode(enum ipa_vlan_ifaces iface, bool *res)
 		return -EINVAL;
 	}
 
-	if (iface < 0 || iface > IPA_VLAN_IF_MAX) {
+	if (iface < 0 || iface >= IPA_VLAN_IF_MAX) {
 		IPAERR("invalid iface %d\n", iface);
 		return -EINVAL;
 	}
@@ -5755,6 +5755,22 @@ void ipa3_enable_dcd(void)
 
 	ipahal_write_reg_fields(IPA_IDLE_INDICATION_CFG,
 			&idle_indication_cfg);
+}
+
+bool ipa3_check_idr_if_freed(void *ptr)
+{
+	int id;
+	void *iter_ptr;
+
+	spin_lock(&ipa3_ctx->idr_lock);
+	idr_for_each_entry(&ipa3_ctx->ipa_idr, iter_ptr, id) {
+		if ((uintptr_t)ptr == (uintptr_t)iter_ptr) {
+			spin_unlock(&ipa3_ctx->idr_lock);
+			return false;
+		}
+	}
+	spin_unlock(&ipa3_ctx->idr_lock);
+	return true;
 }
 
 void ipa3_init_imm_cmd_desc(struct ipa3_desc *desc,
