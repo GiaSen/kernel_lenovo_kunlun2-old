@@ -286,7 +286,7 @@ static void wcd_mbhc_update_fsm_source(struct wcd_mbhc *mbhc,
 	};
 }
 
-static void wcd_enable_mbhc_supply(struct wcd_mbhc *mbhc,
+void wcd_enable_mbhc_supply(struct wcd_mbhc *mbhc,
 			enum wcd_mbhc_plug_type plug_type)
 {
 
@@ -326,6 +326,7 @@ static void wcd_enable_mbhc_supply(struct wcd_mbhc *mbhc,
 		}
 	}
 }
+EXPORT_SYMBOL(wcd_enable_mbhc_supply);
 
 static bool wcd_mbhc_check_for_spl_headset(struct wcd_mbhc *mbhc,
 					   int *spl_hs_cnt)

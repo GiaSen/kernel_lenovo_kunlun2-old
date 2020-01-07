@@ -130,10 +130,6 @@ ifdef CONFIG_SND_SOC_BG_8909
 	MACHINE_OBJS += msm_bg.o
 endif
 
-ifdef CONFIG_SND_SOC_8909_DIG_CDC
-	MACHINE_DIGCDC_OBJS += msm8909.o
-endif
-
 ifdef CONFIG_SND_SOC_CPE
 	CPE_LSM_OBJS += msm-cpe-lsm.o
 endif
@@ -211,6 +207,7 @@ KBUILD_EXTRA_SYMBOLS +=$(OUT)/obj/vendor/qcom/opensource/audio-kernel/asoc/codec
 KBUILD_EXTRA_SYMBOLS +=$(OUT)/obj/vendor/qcom/opensource/audio-kernel/asoc/codecs/wcd934x/Module.symvers
 KBUILD_EXTRA_SYMBOLS +=$(OUT)/obj/vendor/qcom/opensource/audio-kernel/asoc/codecs/sdm660_cdc/Module.symvers
 KBUILD_EXTRA_SYMBOLS +=$(OUT)/obj/vendor/qcom/opensource/audio-kernel/asoc/codecs/msm_sdw/Module.symvers
+KBUILD_EXTRA_SYMBOLS +=$(OUT)/obj/vendor/qcom/opensource/audio-kernel/asoc/codecs/tfa98xx/Module.symvers
 endif
 ifeq ($(KERNEL_BUILD), 1)
 	obj-y += codecs/
@@ -233,9 +230,6 @@ machine_ext_dlkm-y := $(MACHINE_EXT_OBJS)
 
 obj-$(CONFIG_SND_SOC_BG_8909) += machine_dlkm.o
 machine_dlkm-y := $(MACHINE_OBJS)
-
-obj-$(CONFIG_SND_SOC_8909_DIG_CDC) += machine_digcdc_dlkm.o
-machine_digcdc_dlkm-y := $(MACHINE_DIGCDC_OBJS)
 
 obj-$(CONFIG_SND_SOC_MACHINE_SDM845) += machine_dlkm.o
 machine_dlkm-y := $(MACHINE_OBJS)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -646,11 +646,11 @@ static int msm_qti_pp_set_sec_auxpcm_lb_vol_mixer(
 static int msm_qti_pp_get_channel_map_mixer(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
 {
-	char channel_map[PCM_FORMAT_MAX_NUM_CHANNEL_V8] = {0};
+	char channel_map[PCM_FORMAT_MAX_NUM_CHANNEL] = {0};
 	int i;
 
 	adm_get_multi_ch_map(channel_map, ADM_PATH_PLAYBACK);
-	for (i = 0; i < PCM_FORMAT_MAX_NUM_CHANNEL_V8; i++)
+	for (i = 0; i < PCM_FORMAT_MAX_NUM_CHANNEL; i++)
 		ucontrol->value.integer.value[i] =
 			(unsigned int) channel_map[i];
 	return 0;
@@ -659,10 +659,10 @@ static int msm_qti_pp_get_channel_map_mixer(struct snd_kcontrol *kcontrol,
 static int msm_qti_pp_put_channel_map_mixer(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
 {
-	char channel_map[PCM_FORMAT_MAX_NUM_CHANNEL_V8];
+	char channel_map[PCM_FORMAT_MAX_NUM_CHANNEL];
 	int i;
 
-	for (i = 0; i < PCM_FORMAT_MAX_NUM_CHANNEL_V8; i++)
+	for (i = 0; i < PCM_FORMAT_MAX_NUM_CHANNEL; i++)
 		channel_map[i] = (char)(ucontrol->value.integer.value[i]);
 	adm_set_multi_ch_map(channel_map, ADM_PATH_PLAYBACK);
 
@@ -998,13 +998,6 @@ int msm_adsp_inform_mixer_ctl(struct snd_soc_pcm_runtime *rtd,
 	}
 
 	event_data = (struct msm_adsp_event_data *)payload;
-	if (event_data->payload_len < sizeof(struct msm_adsp_event_data)) {
-		pr_err("%s: event_data size of %x is less than expected.\n",
-			__func__, event_data->payload_len);
-		ret = -EINVAL;
-		goto done;
-	}
-
 	kctl->info(kctl, &kctl_info);
 
 	if (event_data->payload_len >
@@ -1239,8 +1232,8 @@ static const struct snd_kcontrol_new sec_auxpcm_lb_vol_mixer_controls[] = {
 };
 
 static const struct snd_kcontrol_new multi_ch_channel_map_mixer_controls[] = {
-	SOC_SINGLE_MULTI_EXT("Playback Device Channel Map", SND_SOC_NOPM, 0, 34,
-	0, PCM_FORMAT_MAX_NUM_CHANNEL_V8, msm_qti_pp_get_channel_map_mixer,
+	SOC_SINGLE_MULTI_EXT("Playback Device Channel Map", SND_SOC_NOPM, 0, 16,
+	0, 8, msm_qti_pp_get_channel_map_mixer,
 	msm_qti_pp_put_channel_map_mixer),
 };
 

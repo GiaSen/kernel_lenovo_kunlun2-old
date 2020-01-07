@@ -151,9 +151,15 @@ void wcd_enable_curr_micbias(const struct wcd_mbhc *mbhc,
 		wcd_program_btn_threshold(mbhc, true);
 		break;
 	case WCD_MBHC_EN_NONE:
-		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_BTN_ISRC_CTL, 0);
-		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_FSM_EN, 1);
-		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_MICB_CTRL, 0);
+		if(((mbhc->zl) > 20000) && ((mbhc->zr) > 20000)){
+			WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_BTN_ISRC_CTL, 3);
+			WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_FSM_EN, 1);
+			WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_MICB_CTRL, 1);
+		}else{
+			WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_BTN_ISRC_CTL, 0);
+			WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_FSM_EN, 1);
+			WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_MICB_CTRL, 0);
+		}
 		break;
 	default:
 		pr_debug("%s: Invalid parameter", __func__);
@@ -769,6 +775,9 @@ void wcd_mbhc_elec_hs_report_unplug(struct wcd_mbhc *mbhc)
 }
 EXPORT_SYMBOL(wcd_mbhc_elec_hs_report_unplug);
 
+
+void wcd_enable_mbhc_supply(struct wcd_mbhc *mbhc,enum wcd_mbhc_plug_type plug_type);
+
 void wcd_mbhc_find_plug_and_report(struct wcd_mbhc *mbhc,
 				   enum wcd_mbhc_plug_type plug_type)
 {
@@ -796,7 +805,29 @@ void wcd_mbhc_find_plug_and_report(struct wcd_mbhc *mbhc,
 			wcd_mbhc_report_plug(mbhc, 0, SND_JACK_HEADPHONE);
 		if (mbhc->current_plug == MBHC_PLUG_TYPE_HEADSET)
 			wcd_mbhc_report_plug(mbhc, 0, SND_JACK_HEADSET);
-		wcd_mbhc_report_plug(mbhc, 1, SND_JACK_UNSUPPORTED);
+		//wcd_mbhc_report_plug(mbhc, 1, SND_JACK_UNSUPPORTED);
+		/*
+		* calculate impedance detection
+		* If Zl and Zr > 20k then it is special accessory
+		* otherwise unsupported cable.
+		*/
+		if (mbhc->impedance_detect) {
+				mbhc->mbhc_cb->compute_impedance(mbhc,&mbhc->zl, &mbhc->zr);
+			if ((mbhc->zl > 20000) && (mbhc->zr > 20000)) {
+				pr_debug("%s: special accessory \n", __func__);
+			/* Toggle switch back */
+			if (mbhc->mbhc_cfg->swap_gnd_mic &&
+			mbhc->mbhc_cfg->swap_gnd_mic(mbhc->codec,true)) {
+				pr_debug("%s: US_EU gpio present,flip switch again\n", __func__);
+			}
+			/* enable CS/MICBIAS for headset button detection to work */
+			//plug_type = MBHC_PLUG_TYPE_HEADSET;
+			wcd_enable_mbhc_supply(mbhc, MBHC_PLUG_TYPE_HEADSET);
+			wcd_mbhc_report_plug(mbhc, 1, SND_JACK_HEADSET);
+			} else {
+				wcd_mbhc_report_plug(mbhc, 1, SND_JACK_UNSUPPORTED);
+			}
+		}
 	} else if (plug_type == MBHC_PLUG_TYPE_HEADSET) {
 		if (mbhc->mbhc_cfg->enable_anc_mic_detect &&
 		    mbhc->mbhc_fn->wcd_mbhc_detect_anc_plug_type)
