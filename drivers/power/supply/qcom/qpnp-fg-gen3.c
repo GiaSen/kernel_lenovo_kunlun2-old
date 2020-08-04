@@ -4050,12 +4050,18 @@ static int fg_psy_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_OCV:
 		rc = fg_get_sram_prop(chip, FG_SRAM_OCV, &pval->intval);
+#if defined(CONFIG_PRODUCT_KUNLUN2)
+		pr_err("hzn:FG_OCV = %d\n", pval->intval);
+#endif
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
 		pval->intval = chip->cl.nom_cap_uah;
 		break;
 	case POWER_SUPPLY_PROP_RESISTANCE_ID:
 		pval->intval = chip->batt_id_ohms;
+#if defined(CONFIG_PRODUCT_KUNLUN2)
+		pr_err("hzn:get id = %d\n", pval->intval);
+#endif
 		break;
 	case POWER_SUPPLY_PROP_BATTERY_TYPE:
 		pval->strval = fg_get_battery_type(chip);
@@ -4120,7 +4126,11 @@ static int fg_psy_get_property(struct power_supply *psy,
 		rc = fg_get_prop_real_capacity(chip, &pval->intval);
 		break;
 	default:
+#if defined(CONFIG_PRODUCT_KUNLUN2)
+		pr_debug("unsupported property %d\n", psp);
+#else
 		pr_err("unsupported property %d\n", psp);
+#endif
 		rc = -EINVAL;
 		break;
 	}
@@ -5190,7 +5200,11 @@ static int fg_parse_ki_coefficients(struct fg_chip *chip)
 #define DEFAULT_CHG_TERM_CURR_MA	100
 #define DEFAULT_CHG_TERM_BASE_CURR_MA	75
 #define DEFAULT_SYS_TERM_CURR_MA	-125
+#if defined(CONFIG_PRODUCT_KUNLUN2)
+#define DEFAULT_CUTOFF_CURR_MA		200
+#else
 #define DEFAULT_CUTOFF_CURR_MA		500
+#endif
 #define DEFAULT_DELTA_SOC_THR		1
 #define DEFAULT_RECHARGE_SOC_THR	95
 #define DEFAULT_BATT_TEMP_COLD		0
@@ -5362,6 +5376,9 @@ static int fg_parse_dt(struct fg_chip *chip)
 		chip->dt.cutoff_curr_ma = DEFAULT_CUTOFF_CURR_MA;
 	else
 		chip->dt.cutoff_curr_ma = temp;
+#if defined(CONFIG_PRODUCT_KUNLUN2)
+	pr_err("hzn::cutoff_curr_ma = %d\n", chip->dt.cutoff_curr_ma);
+#endif
 
 	rc = of_property_read_u32(node, "qcom,fg-delta-soc-thr", &temp);
 	if (rc < 0)

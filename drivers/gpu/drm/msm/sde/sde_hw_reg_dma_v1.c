@@ -67,6 +67,7 @@ static uint32_t reg_dma_register_count;
 static uint32_t reg_dma_intr_status_offset;
 static uint32_t reg_dma_intr_4_status_offset;
 static uint32_t reg_dma_intr_clear_offset;
+static uint32_t reg_dma_error_clear_mask;
 
 typedef int (*reg_dma_internal_ops) (struct sde_reg_dma_setup_ops_cfg *cfg);
 
@@ -110,6 +111,8 @@ static u32 ctl_trigger_done_mask[CTL_MAX][DMA_CTL_QUEUE_MAX] = {
 	[CTL_3][0] = BIT(19),
 	[CTL_3][1] = BIT(24),
 };
+//static int reg_dma_int_status_off;
+//static int reg_dma_clear_status_off;
 
 static int validate_dma_cfg(struct sde_reg_dma_setup_ops_cfg *cfg);
 static int validate_write_decode_sel(struct sde_reg_dma_setup_ops_cfg *cfg);
@@ -474,6 +477,7 @@ static int validate_kick_off_v1(struct sde_reg_dma_kickoff_cfg *cfg)
 
 static int write_kick_off_v1(struct sde_reg_dma_kickoff_cfg *cfg)
 {
+	//u32 cmd1;
 	u32 cmd1, mask = 0, val = 0;
 	struct sde_hw_blk_reg_map hw;
 
@@ -488,10 +492,16 @@ static int write_kick_off_v1(struct sde_reg_dma_kickoff_cfg *cfg)
 
 	SET_UP_REG_DMA_REG(hw, reg_dma);
 	SDE_REG_WRITE(&hw, REG_DMA_OP_MODE_OFF, BIT(0));
+
+	//SDE_REG_WRITE(...&hw, reg_dma_clear_status_off,
+	//	ctl_trigger_done_mask[cfg->ctl->idx][cfg->queue_select]);
 	val = SDE_REG_READ(&hw, reg_dma_intr_4_status_offset);
+	//if (val)
+	//	SDE_DBG_DUMP("all", "dbg_bus", "vbif_dbg_bus", "panic");
+
 	if (val) {
 		DRM_DEBUG("LUT dma status %x\n", val);
-		mask = BIT(0) | BIT(1) | BIT(2) | BIT(16);
+		mask = reg_dma_error_clear_mask;
 		SDE_REG_WRITE(&hw, reg_dma_intr_clear_offset + sizeof(u32) * 4,
 			mask);
 		SDE_EVT32(val);
@@ -559,10 +569,14 @@ int init_v1(struct sde_hw_reg_dma *cfg)
 		reg_dma_ctl_queue_off[i] = reg_dma_ctl_queue_off[i - 1] +
 			(sizeof(u32) * 4);
 
+//	reg_dma_int_status_off = 0x90;
+//	reg_dma_clear_status_off = 0xa0;
+
 	reg_dma_register_count = 60;
 	reg_dma_intr_status_offset = 0x90;
 	reg_dma_intr_4_status_offset = 0xa0;
 	reg_dma_intr_clear_offset = 0xb0;
+	reg_dma_error_clear_mask = BIT(0) | BIT(1) | BIT(2) | BIT(16);
 
 	return 0;
 }

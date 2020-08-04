@@ -34,6 +34,7 @@
 #include <linux/qpnp/qpnp-pbs.h>
 #include <linux/qpnp/qpnp-misc.h>
 #include <linux/power_supply.h>
+#include <linux/time.h>
 
 #define PMIC_VER_8941           0x01
 #define PMIC_VERSION_REG        0x0105
@@ -936,6 +937,9 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 	u32 key_status;
 	uint pon_rt_sts;
 	u64 elapsed_us;
+	struct timeval timestamp;
+	struct tm tm;
+	char buff[255];
 
 	cfg = qpnp_get_cfg(pon, pon_type);
 	if (!cfg)
@@ -964,9 +968,28 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 	switch (cfg->pon_type) {
 	case PON_KPDPWR:
 		pon_rt_bit = QPNP_PON_KPDPWR_N_SET;
+		/* get the time stamp in readable format to print*/
+		do_gettimeofday(&timestamp);
+		time_to_tm((time_t)(timestamp.tv_sec), 0, &tm);
+		snprintf(buff, sizeof(buff),
+			"%u-%02d-%02d %02d:%02d:%02d UTC",
+			(int) tm.tm_year + 1900, tm.tm_mon + 1,
+			tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+		pr_info("Report pwrkey %s event at: %s\n", pon_rt_bit &
+			pon_rt_sts ? "press" : "release", buff);
 		break;
 	case PON_RESIN:
 		pon_rt_bit = QPNP_PON_RESIN_N_SET;
+               do_gettimeofday(&timestamp);
+                time_to_tm((time_t)(timestamp.tv_sec), 0, &tm);
+                snprintf(buff, sizeof(buff),
+                        "%u-%02d-%02d %02d:%02d:%02d UTC",
+                        (int) tm.tm_year + 1900, tm.tm_mon + 1,
+                        tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+                pr_info("Report volum down key %s event at: %s\n", pon_rt_bit &
+                        pon_rt_sts ? "press" : "release", buff);
 		break;
 	case PON_CBLPWR:
 		pon_rt_bit = QPNP_PON_CBLPWR_N_SET;
@@ -1000,6 +1023,56 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 	input_sync(pon->pon_input);
 
 	cfg->old_state = !!key_status;
+
+	return 0;
+}
+
+static int qpnp_pon_read(struct qpnp_pon *pon, u16 addr, unsigned int *val)
+{
+        int rc;
+
+        rc = regmap_read(pon->regmap, addr, val);
+        if (rc)
+                pr_info("Register read failed, addr=0x%04X, rc=%d\n",
+                        addr, rc);
+        return rc;
+}
+
+static int qpnp_pon_input_dispatch_vol(struct qpnp_pon *pon, u32 pon_type)
+{
+	struct qpnp_pon_config *cfg = NULL;
+	u8  pon_rt_bit = 0;
+	u32 key_status;
+	uint pon_rt_sts;
+	int rc;
+
+	cfg = qpnp_get_cfg(pon, pon_type);
+	if (!cfg)
+		return -EINVAL;
+
+	/* Check if key reporting is supported */
+	if (!cfg->key_code)
+		return 0;
+
+	/* Check the RT status to get the current status of the line */
+	rc = qpnp_pon_read(pon, QPNP_PON_RT_STS(pon), &pon_rt_sts);
+	if (rc)
+		return rc;
+
+	pon_rt_bit = QPNP_PON_RESIN_N_SET;
+
+	pr_info("PMIC input: code=%d, status=0x%02X\n", cfg->key_code,
+		pon_rt_sts);
+	key_status = pon_rt_sts & pon_rt_bit;
+
+	/*
+	 * Report press event if vol key is pressed from xbl
+	 */
+	if (key_status) {
+		input_report_key(pon->pon_input, cfg->key_code, key_status);
+		input_sync(pon->pon_input);
+		cfg->old_state = !!key_status;
+	}
 
 	return 0;
 }
@@ -2607,6 +2680,9 @@ static int qpnp_pon_probe(struct platform_device *pdev)
 					"qcom,use-legacy-hard-reset-offset");
 
 	qpnp_pon_debugfs_init(pdev);
+
+
+	qpnp_pon_input_dispatch_vol(pon, PON_RESIN);
 	return 0;
 
 err_out:

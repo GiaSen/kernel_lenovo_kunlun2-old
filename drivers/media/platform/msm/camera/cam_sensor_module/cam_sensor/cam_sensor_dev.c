@@ -15,6 +15,61 @@
 #include "cam_sensor_soc.h"
 #include "cam_sensor_core.h"
 
+/* Huaqin add for add camera kernel node by zhangpeng at 2018/9/13 start*/
+#undef CAM_MODULE_INFO_CONFIG
+#define CAM_MODULE_INFO_CONFIG 1
+
+#if CAM_MODULE_INFO_CONFIG
+#include <linux/proc_fs.h>
+#include <linux/kernel.h>
+#include <linux/string.h>
+#include <linux/uaccess.h>
+#include <linux/slab.h>
+#endif
+
+#if CAM_MODULE_INFO_CONFIG
+char *cameraModuleInfo[4] = {NULL, NULL, NULL, NULL};
+
+#define CAM_MODULE_INFO "cameraModuleInfo"
+
+static struct proc_dir_entry *proc_entry;
+
+static ssize_t cameraModuleInfo_read
+	(struct file *file, char __user *page, size_t size, loff_t *ppos)
+{
+	char buf[150] = {0};
+
+	int rc = 0;
+
+	snprintf(buf, 150,
+			"main camera:%s\nrear aux1 camera:%s\nfront camera:%s\nrear aux2 camera:%s\n",
+			cameraModuleInfo[0],
+			cameraModuleInfo[1],
+			cameraModuleInfo[2],
+			cameraModuleInfo[3]);
+
+	rc = simple_read_from_buffer(page, size, ppos, buf, strlen(buf));
+
+	return rc;
+}
+
+static ssize_t cameraModuleInfo_write
+	(struct file *filp, const char __user *buffer,
+	size_t count, loff_t *off)
+{
+	return 0;
+}
+
+static const struct file_operations cameraModuleInfo_fops = {
+	.owner = THIS_MODULE,
+	.read = cameraModuleInfo_read,
+	.write = cameraModuleInfo_write,
+};
+#endif
+
+/* Huaqin add for add camera kernel node by zhangpeng at 2018/9/13 end*/
+
+
 static long cam_sensor_subdev_ioctl(struct v4l2_subdev *sd,
 	unsigned int cmd, void *arg)
 {

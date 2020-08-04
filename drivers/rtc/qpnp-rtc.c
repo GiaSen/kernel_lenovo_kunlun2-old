@@ -302,6 +302,7 @@ qpnp_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	}
 
 	rtc_tm_to_time(&rtc_tm, &secs_rtc);
+	dev_info(dev, "current time(utc) value:%lu, alarm time(utc) at:%lu\n", secs_rtc, secs);
 	if (secs < secs_rtc) {
 		dev_err(dev, "Trying to set alarm in the past\n");
 		return -EINVAL;
@@ -334,7 +335,7 @@ qpnp_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	}
 
 	rtc_dd->alarm_ctrl_reg1 = ctrl_reg;
-
+	dev_info(dev, "%u, %s setting alarm", current->pid, current->comm);
 	dev_dbg(dev, "Alarm Set for h:r:s=%d:%d:%d, d/m/y=%d/%d/%d\n",
 			alarm->time.tm_hour, alarm->time.tm_min,
 			alarm->time.tm_sec, alarm->time.tm_mday,
