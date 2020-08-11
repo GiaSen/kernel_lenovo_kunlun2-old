@@ -77,6 +77,8 @@ endif
 ###########################################################
 ifeq ($(strip $(AUDIO_FEATURE_ENABLED_DLKM_8909W)),true)
 include $(CLEAR_VARS)
+LOCAL_C_INCLUDES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
+LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 LOCAL_MODULE              := $(AUDIO_CHIPSET)_bg_glink.ko
 LOCAL_MODULE_KBUILD_NAME  := bg_glink_dlkm.ko
 LOCAL_MODULE_TAGS         := optional

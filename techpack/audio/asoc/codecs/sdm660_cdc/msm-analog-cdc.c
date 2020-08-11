@@ -4205,7 +4205,8 @@ static int msm_anlg_cdc_soc_probe(struct snd_soc_codec *codec)
 	snd_soc_dapm_ignore_suspend(dapm, "PDM Capture");
 
 	snd_soc_dapm_sync(dapm);
-
+        snd_soc_update_bits(codec, MSM89XX_PMIC_ANALOG_MICB_1_INT_RBIAS, 0x01, 0x00);
+        pr_err("%s : set bit 0 of reg 0x143 to 0\n", __func__);
 	return 0;
 }
 
