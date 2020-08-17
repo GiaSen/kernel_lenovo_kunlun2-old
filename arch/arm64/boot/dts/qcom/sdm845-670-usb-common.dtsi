@@ -73,7 +73,9 @@
 			compatible = "snps,dwc3";
 			reg = <0x0a600000 0xcd00>;
 			interrupts = <0 133 0>;
-			usb-phy = <&qusb_phy0>, <&usb_qmp_dp_phy>;
+			/* usb-phy = <&qusb_phy0>, <&usb_qmp_dp_phy>; */
+			usb-phy = <&qusb_phy0>, <&usb_nop_phy>;
+			maximum-speed = "high-speed";
 			tx-fifo-resize;
 			linux,sysdev_is_parent;
 			snps,disable-clk-gating;
@@ -175,9 +177,14 @@
 		reset-names = "phy_reset";
 	};
 
+	usb_nop_phy: usb_nop_phy {
+		compatible = "usb-nop-xceiv";
+	};
+
 	/* Primary USB port related QMP USB DP Combo PHY */
 	usb_qmp_dp_phy: ssphy@88e8000 {
 		compatible = "qcom,usb-ssphy-qmp-dp-combo";
+		status = "disabled";
 		reg = <0x88e8000 0x3000>;
 		reg-names = "qmp_phy_base";
 

@@ -267,13 +267,24 @@
 		regulator-max-microvolt = <2960000>;
 	};
 
+#if defined(CONFIG_PRODUCT_ZAP)
 	pm660l_l5: regulator-pm660l-l5 {
 		compatible = "qcom,stub-regulator";
 		regulator-name = "pm660l_l5";
 		qcom,hpm-min-load = <10000>;
-		regulator-min-microvolt = <2960000>;
-		regulator-max-microvolt = <2960000>;
+		regulator-min-microvolt = <2950000>;
+		regulator-max-microvolt = <2950000>;
 	};
+#else
+    pm660l_l5: regulator-pm660l-l5 {
+        compatible = "qcom,stub-regulator";
+        regulator-name = "pm660l_l5";
+        qcom,hpm-min-load = <10000>;
+        regulator-min-microvolt = <2960000>;
+        regulator-max-microvolt = <2960000>;
+    };
+
+#endif
 
 	pm660l_l6: regulator-pm660l-l6 {
 		compatible = "qcom,stub-regulator";

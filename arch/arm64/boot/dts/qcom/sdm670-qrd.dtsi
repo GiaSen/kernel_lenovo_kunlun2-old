@@ -12,13 +12,23 @@
 
 #include <dt-bindings/clock/qcom,rpmh.h>
 #include <dt-bindings/gpio/gpio.h>
-#include "sdm670-camera-sensor-qrd.dtsi"
 #include "sdm670-pmic-overlay.dtsi"
 #include "sdm670-sde-display.dtsi"
+#include <generated/autoconf.h>
+#include <dt-bindings/clock/qcom,camcc-sdm845.h>
 
+
+#if defined(CONFIG_PRODUCT_JD2019)
+#include "sdm670-camera-sensor-qrd.dtsi"
+#elif defined(CONFIG_PRODUCT_KUNLUN2)
+#include "sdm670-camera-sensor-kunlun2.dtsi"
+#elif defined(CONFIG_PRODUCT_ZAP)
+#include "sdm670-camera-sensor-zap.dtsi"
+#endif
 &qupv3_se10_i2c {
 #include "smb1355.dtsi"
 };
+
 
 &qupv3_se9_2uart {
 	status = "disabled";
@@ -50,6 +60,10 @@
 			     &nfc_enable_active
 			     &nfc_clk_default>;
 		pinctrl-1 = <&nfc_int_suspend &nfc_enable_suspend>;
+		qcom,clk-src = "BBCLK3";
+		clocks = <&clock_rpmh RPMH_LN_BB_CLK3>;
+		clock-names = "ref_clk";
+		status = "disabled";
 	};
 };
 
@@ -64,7 +78,15 @@
 &vendor {
 	qrd_batterydata: qcom,battery-data {
 		qcom,batt-id-range-pct = <15>;
+#if defined(CONFIG_PRODUCT_JD2019)
+		#include "huaqin_ZQL1822_3210mAH_veken_PM670.dtsi"
+#elif defined( CONFIG_PRODUCT_KUNLUN2 )
+		#include "QL2_VK_4050mAH_47k_Dec5th2018_PM670GUI00045.dtsi"
+#elif defined( CONFIG_PRODUCT_ZAP )
+		#include "fg-gen3-batterydata-3565325_Lenovo_ZAPscud_3300mAh_averaged_MasterSlave_Jul30th2018_PM670.dtsi"
+#else
 		#include "fg-gen3-batterydata-mlp356477-2800mah.dtsi"
+#endif
 	};
 };
 
@@ -75,14 +97,32 @@
 &pm660_fg {
 	qcom,battery-data = <&qrd_batterydata>;
 	qcom,fg-bmd-en-delay-ms = <300>;
+#if defined(CONFIG_PRODUCT_JD2019)
+	qcom,fg-jeita-thresholds = <0 1 49 50>;
+	qcom,fg-jeita-hyst-temp = <3>;
+#elif defined( CONFIG_PRODUCT_KUNLUN2 )
+	qcom,fg-jeita-thresholds = <0 20 45 50>;
+	qcom,battery-thermal-coefficients = [9d 50 ff]; // beta = 3380
+#else
 	qcom,fg-jeita-thresholds = <0 15 45 55>;
+#endif
 };
 
 &pm660_charger {
+#if defined(CONFIG_PRODUCT_JD2019)
+	qcom,thermal-mitigation = <2600000 2300000 2100000 1800000 700000>;
+	qcom,battery-data = <&qrd_batterydata>;
+	qcom,sw-jeita-enable;
+	qcom,step-charging-enable;
+#elif defined(CONFIG_PRODUCT_KUNLUN2)
+	//qcom,thermal-mitigation = <3000000 2500000 2000000 1500000 1000000 800000>;
+	qcom,battery-data = <&qrd_batterydata>;
+#else
 	qcom,thermal-mitigation = <4200000 3500000 3000000 2500000
 				2000000 1500000 1000000 500000>;
 	qcom,battery-data = <&qrd_batterydata>;
 	qcom,sw-jeita-enable;
+#endif
 };
 
 &tlmm {
@@ -112,6 +152,10 @@
 		io-channel-names = "charger_temp",
 				   "charger_temp_max";
 		status = "ok";
+#if defined(CONFIG_PRODUCT_JD2019)
+		qcom,parallel-mode = <1>;
+		qcom,disable-ctm;
+#endif
 	};
 };
 
@@ -127,6 +171,10 @@
 		io-channel-names = "charger_temp",
 				   "charger_temp_max";
 		status = "ok";
+#if defined(CONFIG_PRODUCT_JD2019)
+		qcom,parallel-mode = <1>;
+		qcom,disable-ctm;
+#endif
 	};
 };
 
@@ -172,13 +220,8 @@
 		    0x22 0x210>; /* PWR_CTRL1 */
 };
 
-&pm660_haptics {
-	qcom,vmax-mv = <1800>;
-	qcom,wave-play-rate-us = <4255>;
-	qcom,lra-auto-mode;
-	status = "okay";
-};
-
+/* huaqin add for JD2019-111 by xudayi at 2018/08/30 start */
+/*
 &int_codec {
 	qcom,model = "sdm670-skuw-snd-card";
 	qcom,msm-micbias1-ext-cap;
@@ -205,7 +248,8 @@
 	qcom,wsa-devs = <&wsa881x_211_en>, <&wsa881x_213_en>;
 	qcom,wsa-aux-dev-prefix = "SpkrLeft", "SpkrLeft";
 };
-
+*/
+/* huaqin add for JD2019-111 by xudayi at 2018/08/30 end */
 &sdhc_1 {
 	vdd-supply = <&pm660l_l4>;
 	qcom,vdd-voltage-level = <2960000 2960000>;
@@ -241,39 +285,8 @@
 
 	status = "ok";
 };
-
-&tlmm {
-	pmx_ts_rst_active {
-		ts_rst_active: ts_rst_active {
-			mux {
-				pins = "gpio99";
-				function = "gpio";
-			};
-
-			config {
-				pins = "gpio99";
-				drive-strength = <16>;
-				bias-pull-up;
-			};
-		};
-	};
-
-	pmx_ts_rst_suspend {
-		ts_rst_suspend: ts_rst_suspend {
-			mux {
-				pins = "gpio99";
-				function = "gpio";
-			};
-
-			config {
-				pins = "gpio99";
-				drive-strength = <2>;
-				bias-pull-down;
-			};
-		};
-	};
-};
-
+/* huaqin add for JD2019-313 by xudayi at 2018/9/11 start */
+/*
 &soc {
 	hbtp {
 		compatible = "qcom,hbtp-input";
@@ -294,7 +307,8 @@
 		qcom,afe-power-off-delay-us = <6>;
 	};
 };
-
+*/
+/* huaqin add for JD2019-313 by xudayi at 2018/9/11 end */
 &dsi_dual_nt36850_truly_cmd {
 	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
 	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_wled";
@@ -304,6 +318,18 @@
 	qcom,mdss-dsi-mode-sel-gpio-state = "dual_port";
 	qcom,platform-reset-gpio = <&tlmm 75 0>;
 	qcom,platform-te-gpio = <&tlmm 10 0>;
+};
+
+&dsi_focaltech_ft8719_video {
+	qcom,platform-reset-gpio = <&tlmm 92 0>;
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+};
+
+&dsi_smd639_amoled_fhd_cmd {
+        qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
+        qcom,panel-supply-entries = <&dsi_panel_pwr_supply_labibb_amoled>;
+        qcom,platform-reset-gpio = <&tlmm 92 0>;
+        qcom,platform-te-gpio = <&tlmm 10 0>;
 };
 
 &dsi_dual_nt36850_truly_cmd_display {
@@ -318,7 +344,7 @@
 
 &pm660l_wled {
 	status = "okay";
-	qcom,led-strings-list = [00 01];
+	qcom,led-strings-list = [00 01 02];
 };
 
 &mdss_mdp {

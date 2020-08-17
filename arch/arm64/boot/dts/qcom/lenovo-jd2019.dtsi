@@ -1,0 +1,137 @@
+/* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/* nfc */
+&qupv3_se3_i2c {
+	nq@28 {
+		//qcom,nq-esepwr = <&tlmm 96 0x00>;   //only EVT2
+		qcom,nq-esepwr = <&tlmm 116 0x00>;
+		status = "okay";
+	};
+};
+&nfc_enable_active {
+	mux {
+		//pins = "gpio12", "gpio43", "gpio96";  //only EVT2
+		pins = "gpio12", "gpio43", "gpio116";
+	};
+	config {
+		//pins = "gpio12", "gpio43", "gpio96";  //only EVT2
+		pins = "gpio12", "gpio43", "gpio116";
+	};
+};
+&nfc_enable_suspend{
+	mux {
+		//pins = "gpio12", "gpio43", "gpio96";  //only EVT2
+		pins = "gpio12", "gpio43", "gpio116";
+	};
+	config {
+		//pins = "gpio12", "gpio43", "gpio96";  //only EVT2
+		pins = "gpio12", "gpio43", "gpio116";
+	};
+};
+
+&pm660_haptics {
+	qcom,actuator-type = <1>;
+	status = "okay";
+};
+
+&soc {
+	gpio_keys {
+		pinctrl-0 = <&key_vol_up_default>;
+		cam_snapshot {
+			status = "disabled";
+		};
+
+		cam_focus {
+			status = "disabled";
+		};
+	};
+};
+
+//add by gongdb for touch panel begin
+&qupv3_se9_i2c {
+    status = "ok";
+	focaltech@38{
+	status = "ok";
+		compatible = "focaltech,fts";
+		reg = <0x38>;
+		lcm_lab-supply = <&lcdb_ldo_vreg>;
+		lcm_ibb-supply = <&lcdb_ncp_vreg>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <125 0x02>;
+		focaltech,reset-gpio = <&tlmm 99 0x00>;
+		focaltech,irq-gpio = <&tlmm 125 0x2002>;
+		vdd-supply = <&pm660l_l3>;
+		vcc_i2c-supply = <&pm660_l11>;
+		focaltech,max-touch-number = <10>;
+		focaltech,display-coords =  <0 0 1080 2340>;
+
+		//pinctrl-names = "pmx_ts_active","pmx_ts_suspend","pmx_ts_release";
+		//pinctrl-0 = <&ts_int_active &ts_reset_active>;
+		//pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+		//pinctrl-2 = <&ts_release>;
+
+		//focaltech,have-key;
+		//focaltech,key-number = <3>;
+		//focaltech,keys = <139 102 158>;
+		//focaltech,key-y-coord = <2000>;
+		//focaltech,key-x-coords = <200 600 800>;
+	};
+
+};
+
+&tlmm {
+	pmx_ts_rst_active {
+		ts_rst_active: ts_rst_active {
+			mux {
+				pins = "gpio99";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio99";
+				drive-strength = <16>;
+				bias-pull-up;
+			};
+		};
+	};
+
+	pmx_ts_rst_suspend {
+		ts_rst_suspend: ts_rst_suspend {
+			mux {
+				pins = "gpio99";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio99";
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+	};
+};
+//add by gongdb for touch panel end
+
+//add by huanghuan for audio start
+
+&int_codec {
+   qcom,sec-mi2s-gpios = <&sec_mi2s_gpios>;
+};
+&actuator_regulator {
+   gpio = <&tlmm 27 0>;
+};
+&msm_sdw_codec {
+                status = "ok";
+};
+
+//add by huanghuan for audio end

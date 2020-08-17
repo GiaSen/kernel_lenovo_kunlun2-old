@@ -1,0 +1,93 @@
+
+&soc {
+    fpc1020 {
+        status = "ok";
+        compatible = "fpc,fpc1020";
+        interrupt-parent = <&tlmm>;
+        interrupts = <121 0x0>;
+        fpc,gpio_rst    = <&tlmm 134 0x0>;
+        fpc,gpio_irq    = <&tlmm 121 0x0>;
+        fpc,gpio_vdd    = <&tlmm 90 0x0>;
+        /*vcc_spi-supply  = <&pm8994_s4>;*/
+        /*vdd_io-supply   = <&pm8996_l18>;*/
+        /*vdd_ana-supply  = <&pm8996_l18>;*/
+        /* fpc,enable-on-boot; */
+        /* fpc,enable-wakeup; */
+
+        pinctrl-names = "fpc1020_reset_reset",
+            "fpc1020_reset_active",
+            "fpc1020_irq_active";
+
+        pinctrl-0 = <&msm_gpio_134>;
+        pinctrl-1 = <&msm_gpio_134_output_high>;
+        pinctrl-2 = <&msm_gpio_121>;
+    };
+
+	qcom,qbt1000 {
+		compatible = "qcom,qbt1000";
+		clock-names = "core", "iface";
+		clock-frequency = <25000000>;
+		qcom,finger-detect-gpio = <&tlmm 122 0>;
+	};
+
+};
+
+/*
+   &pm8994_l18 {
+//   qcom,regulator-type = <0>;
+qcom,init-enable = <0>;
+qcom,init-ldo-mode = <1>;
+qcom,init-pin-ctrl-enable = <0>;
+qcom,init-pin-ctrl-mode = <0>;
+regulator-min-microvolt = <1800000>;
+regulator-max-microvolt = <1800000>;
+qcom,init-voltage = <1800000>;
+status = "okay";
+};
+ */
+&tlmm {
+    /* GPIO_21 : FP_RESET_N */
+msm_gpio_134: msm_gpio_134 {
+                  mux {
+                      pins = "gpio134";
+                      function = "gpio";
+                  };
+
+                  config {
+                      pins = "gpio134";
+                      drive-strength = <2>;
+                      bias-disable;
+                      output-low;
+                  };
+              };
+
+              /* GPIO_21 : FP_RESET_N, state device active*/
+msm_gpio_134_output_high: msm_gpio_134_output_high {
+                              mux {
+                                  pins = "gpio134";
+                                  function = "gpio";
+                              };
+
+                              config {
+                                  pins = "gpio134";
+                                  drive-strength = <2>;
+                                  bias-disable;
+                                  output-high;
+                              };
+                          };
+
+                          /* GPIO_134 : FP_INT_N */
+msm_gpio_121: msm_gpio_121 {
+                  mux {
+                      pins = "gpio121";
+                      function = "gpio";
+                  };
+
+                  config {
+                      pins = "gpio121";
+                      drive-strength = <2>;
+                      bias-pull-down;
+                  };
+              };
+};
+

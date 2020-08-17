@@ -1,6 +1,6 @@
-dtb-$(CONFIG_ARCH_QCOM)	+= apq8016-sbc.dtb msm8916-mtp.dtb
-dtb-$(CONFIG_ARCH_QCOM)	+= msm8996-mtp.dtb
-dtb-$(CONFIG_ARCH_QCOM)	+= apq8096-db820c.dtb
+#dtb-$(CONFIG_ARCH_QCOM)	+= apq8016-sbc.dtb msm8916-mtp.dtb
+#dtb-$(CONFIG_ARCH_QCOM)	+= msm8996-mtp.dtb
+#dtb-$(CONFIG_ARCH_QCOM)	+= apq8096-db820c.dtb
 
 ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
 	dtbo-$(CONFIG_ARCH_SDM845) += \
@@ -114,14 +114,11 @@ endif
 
 ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
 	dtbo-$(CONFIG_ARCH_SDM670) += \
-		sdm670-cdp-overlay.dtbo \
 		sdm670-mtp-overlay.dtbo \
 		sdm670-rumi-overlay.dtbo \
 		sdm670-qrd-overlay.dtbo \
-		sdm670-qrd-sku2-overlay.dtbo \
 		sdm670-pm660a-cdp-overlay.dtbo \
 		sdm670-pm660a-mtp-overlay.dtbo \
-		sdm670-external-codec-cdp-overlay.dtbo \
 		sdm670-external-codec-mtp-overlay.dtbo \
 		sdm670-external-codec-pm660a-cdp-overlay.dtbo \
 		sdm670-external-codec-pm660a-mtp-overlay.dtbo \
@@ -138,25 +135,9 @@ ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
 		sda670-hdk-overlay.dtbo \
 		sda670-pm660a-cdp-overlay.dtbo \
 		sda670-pm660a-mtp-overlay.dtbo \
-		sdm670-tasha-codec-cdp-overlay.dtbo \
 		sdm670-pm660a-tasha-codec-cdp-overlay.dtbo \
-		sdm670-aqt1000-cdp-overlay.dtbo \
-		sdm670-pm660a-aqt1000-cdp-overlay.dtbo \
-		sxr1120-lc-mtp-overlay.dtbo \
-		sxr1120-lc-external-codec-mtp-overlay.dtbo \
-		sxr1120-lc-cdp-overlay.dtbo \
-		sxr1120-lc-external-codec-cdp-overlay.dtbo \
-		qcs605-cdp-overlay.dtbo \
-		qcs605-mtp-overlay.dtbo \
-		qcs605-360camera-overlay.dtbo \
-		qcs605-external-codec-mtp-overlay.dtbo \
-		qcs605-lc-ipcamera-overlay.dtbo \
-		qcs605-lc-mtp-overlay.dtbo \
-		qcs605-lc-cdp-overlay.dtbo \
-		sdm710-cdp-overlay.dtbo \
 		sdm710-mtp-overlay.dtbo \
 		sdm710-qrd-overlay.dtbo \
-		sdm710-qrd-sku2-overlay.dtbo \
 		sdm710-pm660a-cdp-overlay.dtbo \
 		sdm710-pm660a-mtp-overlay.dtbo \
 		sdm710-external-codec-cdp-overlay.dtbo \
@@ -173,20 +154,7 @@ ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
 		sdm710-usbc-external-codec-pm660a-mtp-overlay.dtbo \
 		sdm710-tasha-codec-cdp-overlay.dtbo \
 		sdm710-pm660a-tasha-codec-cdp-overlay.dtbo \
-		sdm710-aqt1000-cdp-overlay.dtbo \
 		sdm710-pm660a-aqt1000-cdp-overlay.dtbo \
-		sxr1130-cdp-overlay.dtbo \
-		sxr1130-external-codec-cdp-overlay.dtbo \
-		sxr1130-mtp-overlay.dtbo \
-		sxr1130-external-codec-mtp-overlay.dtbo \
-		sxr1130-external-codec-pm660a-mtp-overlay.dtbo \
-		sxr1130-pm660a-mtp-overlay.dtbo \
-		sxr1130-usbc-external-codec-cdp-overlay.dtbo \
-		sxr1130-usbc-external-codec-mtp-overlay.dtbo \
-		sxr1130-usbc-external-codec-pm660a-mtp-overlay.dtbo \
-		sxr1130-usbc-mtp-overlay.dtbo \
-		sxr1130-usbc-pm660a-mtp-overlay.dtbo \
-		sxr1130-qrd-overlay.dtbo
 
 sdm670-cdp-overlay.dtbo-base := sdm670.dtb
 sdm670-mtp-overlay.dtbo-base := sdm670.dtb
@@ -211,11 +179,11 @@ sdm670-tasha-codec-cdp-overlay.dtbo-base := sdm670.dtb
 sdm670-pm660a-tasha-codec-cdp-overlay.dtbo-base := sdm670.dtb
 sdm670-aqt1000-cdp-overlay.dtbo-base := sdm670.dtb
 sdm670-pm660a-aqt1000-cdp-overlay.dtbo-base := sdm670.dtb
-sda670-cdp-overlay.dtbo-base := sda670.dtb
-sda670-mtp-overlay.dtbo-base := sda670.dtb
-sda670-hdk-overlay.dtbo-base := sda670.dtb
-sda670-pm660a-cdp-overlay.dtbo-base := sda670.dtb
-sda670-pm660a-mtp-overlay.dtbo-base := sda670.dtb
+#sda670-cdp-overlay.dtbo-base := sda670.dtb
+#sda670-mtp-overlay.dtbo-base := sda670.dtb
+#sda670-hdk-overlay.dtbo-base := sda670.dtb
+#sda670-pm660a-cdp-overlay.dtbo-base := sda670.dtb
+#sda670-pm660a-mtp-overlay.dtbo-base := sda670.dtb
 sxr1120-lc-mtp-overlay.dtbo-base := sxr1120-lc.dtb
 sxr1120-lc-external-codec-mtp-overlay.dtbo-base := sxr1120-lc.dtb
 sxr1120-lc-cdp-overlay.dtbo-base := sxr1120-lc.dtb

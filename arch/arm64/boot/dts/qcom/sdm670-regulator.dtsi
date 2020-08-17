@@ -564,6 +564,7 @@
 		};
 	};
 
+#if defined(CONFIG_PRODUCT_ZAP)
 	rpmh-regulator-ldob5 {
 		compatible = "qcom,rpmh-vrm-regulator";
 		mboxes = <&apps_rsc 0>;
@@ -572,16 +573,37 @@
 		qcom,supported-modes =
 			<RPMH_REGULATOR_MODE_LPM
 			 RPMH_REGULATOR_MODE_HPM>;
-		qcom,mode-threshold-currents = <0 1>;
+		qcom,mode-threshold-currents = <0 10000>;
 		pm660l_l5: regulator-pm660l-l5 {
 			regulator-name = "pm660l_l5";
 			qcom,set = <RPMH_REGULATOR_SET_ALL>;
-			regulator-min-microvolt = <2960000>;
-			regulator-max-microvolt = <2960000>;
-			qcom,init-voltage = <2960000>;
-			qcom,init-mode = <RPMH_REGULATOR_MODE_LPM>;
+			regulator-min-microvolt = <2950000>;
+			regulator-max-microvolt = <2950000>;
+			qcom,init-voltage = <2950000>;
+			qcom,init-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 	};
+#else
+    rpmh-regulator-ldob5 {
+        compatible = "qcom,rpmh-vrm-regulator";
+        mboxes = <&apps_rsc 0>;
+        qcom,resource-name = "ldob5";
+        qcom,regulator-type = "pmic4-ldo";
+        qcom,supported-modes =
+            <RPMH_REGULATOR_MODE_LPM
+            RPMH_REGULATOR_MODE_HPM>;
+        qcom,mode-threshold-currents = <0 1>;
+        pm660l_l5: regulator-pm660l-l5 {
+               regulator-name = "pm660l_l5";
+               qcom,set = <RPMH_REGULATOR_SET_ALL>;
+               regulator-min-microvolt = <2960000>;
+               regulator-max-microvolt = <2960000>;
+               qcom,init-voltage = <2960000>;
+               qcom,init-mode = <RPMH_REGULATOR_MODE_LPM>;
+        };
+    };
+
+#endif
 
 	rpmh-regulator-ldob6 {
 		compatible = "qcom,rpmh-vrm-regulator";

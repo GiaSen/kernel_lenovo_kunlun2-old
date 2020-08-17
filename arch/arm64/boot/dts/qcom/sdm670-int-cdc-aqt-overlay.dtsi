@@ -11,6 +11,7 @@
  */
 
 &int_codec {
+	status = "disable";
 	qcom,model = "sdm670-aqt-snd-card";
 	qcom,msm-mi2s-master = <1>, <1>, <0>, <1>, <1>;
 	qcom,tert-mi2s-gpios = <&tert_mi2s_gpios>;

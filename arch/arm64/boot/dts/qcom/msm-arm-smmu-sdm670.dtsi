@@ -52,7 +52,7 @@
 				<0x6b68 0x9a82a382>;
 	};
 
-	apps_smmu: apps-smmu@0x15000000 {
+	apps_smmu: apps-smmu@15000000 {
 		compatible = "qcom,qsmmu-v500";
 		reg = <0x15000000 0x80000>,
 			<0x150c2000 0x18>;
