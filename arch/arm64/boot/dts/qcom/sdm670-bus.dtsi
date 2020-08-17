@@ -15,7 +15,7 @@
 #include <dt-bindings/clock/qcom,gcc-sdm845.h>
 
 &soc {
-	ad_hoc_bus: ad-hoc-bus {
+	ad_hoc_bus: ad-hoc-bus@16e0000 {
 		compatible = "qcom,msm-bus-device";
 		reg = <0x016E0000 0x40000>,
 			<0x1700000 0x40000>,

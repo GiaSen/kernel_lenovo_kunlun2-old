@@ -14,6 +14,7 @@
 #include "sdm670-wsa881x.dtsi"
 #include "sdm670-lpi.dtsi"
 #include <dt-bindings/clock/qcom,audio-ext-clk.h>
+#include <generated/autoconf.h>
 
 &tavil_snd {
 	qcom,msm-mi2s-master = <1>, <1>, <1>, <1>, <1>;
@@ -134,31 +135,142 @@
 		"ADC1_IN", "ADC1_OUT",
 		"ADC2_IN", "ADC2_OUT",
 		"ADC3_IN", "ADC3_OUT";
-
 	qcom,msm-mi2s-master = <1>, <1>, <1>, <1>, <1>;
 	qcom,msm-mclk-freq = <9600000>;
 	qcom,msm-mbhc-hphl-swh = <1>;
 	qcom,msm-mbhc-gnd-swh = <1>;
 	qcom,msm-micbias2-ext-cap;
+#if defined(CONFIG_PRODUCT_KUNLUN2)
+        qcom,msm-micbias1-ext-cap;
+#endif
 	qcom,msm-hs-micbias-type = "external";
+	/* huaqin add for JD2019-123 by xudayi at 2018/08/3 start */
+      //qcom,sec-mi2s-gpios = <&sec_mi2s_gpios>;
+	/* huaqin add for JD2019-123 by xudayi at 2018/08/3 end */
+
 	qcom,cdc-pdm-gpios = <&cdc_pdm_gpios>;
 	qcom,cdc-comp-gpios = <&cdc_comp_gpios>;
 	qcom,cdc-dmic-gpios = <&cdc_dmic_gpios>;
 
 	asoc-codec = <&stub_codec>, <&msm_digital_codec>,
 		     <&pmic_analog_codec>, <&msm_sdw_codec>,
-		     <&ext_disp_audio_codec>;
+		     /* huaqin add for JD2019-123 by xudayi at 2018/08/31 start */
+		     <&ext_disp_audio_codec>,
+		     <&cs35l41>, <&cs35l41_r>;
+		     /* huaqin add for JD2019-123 by xudayi at 2018/08/31 end */
 	asoc-codec-names = "msm-stub-codec.1", "msm-dig-codec",
 			   "analog-codec", "msm_sdw_codec",
-			   "msm-ext-disp-audio-codec-rx";
-
-	qcom,wsa-max-devs = <2>;
+			   /* huaqin add for JD2019-123 by xudayi at 2018/08/31 start */
+			   "msm-ext-disp-audio-codec-rx",
+			   "cs35l41", "cs35l41_r";
+			   /* huaqin add for JD2019-123 by xudayi at 2018/08/31 end */
+	/* huaqin add for JD2019-111 by xudayi at 2018/08/30 start */
+	qcom,wsa-disable;
+	qcom,wsa-max-devs = <0>;
+	/* huaqin add for JD2019-111 by xudayi at 2018/08/30 end */
 	qcom,wsa-devs = <&wsa881x_211_en>, <&wsa881x_212_en>,
 			<&wsa881x_213_en>, <&wsa881x_214_en>;
 	qcom,wsa-aux-dev-prefix = "SpkrLeft", "SpkrRight",
 				  "SpkrLeft", "SpkrRight";
 };
 
+
+/* huaqin add for JD2019-123 by xudayi at 2018/08/31 start */
+&tlmm {
+	cs35l41_reset_default: cs35l41_reset_default {
+		config {
+			pins = "gpio93";
+			output-low;
+			bias-pull-up;
+			drive-strength = <2>;
+		};
+	};
+
+	/* huaqin add for JD2019-303 by xudayi at 2018/09/12 start */
+	cs35l41_irq_default: cs35l41_irq_default {
+		config {
+			pins = "gpio26";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+	};
+	/* huaqin add for JD2019-303 by xudayi at 2018/09/12 end */
+
+	cs35l41_r_reset_default: cs35l41_r_reset_default {
+		config {
+			pins = "gpio50";
+			output-low;
+			bias-pull-up;
+			drive-strength = <2>;
+		};
+	};
+	/* huaqin add for JD2019-303 by xudayi at 2018/09/12 start */
+	cs35l41_r_irq_default: cs35l41_r_irq_default {
+		config {
+			pins = "gpio49";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+	};
+	/* huaqin add for JD2019-303 by xudayi at 2018/09/12 end */
+};
+
+&qupv3_se3_i2c {
+        status = "okay";
+
+	/* Speaker Amp */
+	cs35l41:cs35l41@43 {
+		status = "okay";
+		compatible = "cirrus,cs35l41";
+		reg = <0x43>;
+
+		reset-gpios = <&tlmm 93 0>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <26 0>;
+		interrupt-names = "amp_l_irq";
+
+		cirrus,right-channel-amp; /* Set Speaker Amp as default Right channel */
+		cirrus,boost-peak-milliamp = <4500>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <15>;
+		cirrus,asp-sdout-hiz = <0x3>;
+
+		pinctrl-names = "reset";
+		pinctrl-0 = <&cs35l41_reset_default>;
+		cirrus,gpio-config2 {
+			cirrus,gpio-type = <1>; /* 0 indicate gpio, 1 indicate interrupt */
+			cirrus,gpio-src-select = <0x4>;
+			cirrus,gpio-output-enable;
+		};
+	};
+
+	/* Receiver Amp */
+	cs35l41_r:cs35l41_r@40 {
+		status = "okay";
+		compatible = "cirrus,cs35l41";
+		reg = <0x40>;
+
+		reset-gpios = <&tlmm 50 0>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <49 0>;
+		interrupt-names = "amp_r_irq";
+
+		cirrus,boost-peak-milliamp = <4500>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <15>;
+		cirrus,asp-sdout-hiz = <0x3>;
+
+		pinctrl-names = "reset";
+		pinctrl-0 = <&cs35l41_r_reset_default>;
+		cirrus,gpio-config2 {
+			cirrus,gpio-type = <1>; /* 0 indicate gpio, 1 indicate interrupt */
+			cirrus,gpio-src-select = <0x4>;
+			cirrus,gpio-output-enable;
+		};
+	};
+};
+
+/* huaqin add for JD2019-123 by xudayi at 2018/08/31 end */
 &soc {
 	wcd_usbc_analog_en1_gpio: msm_cdc_pinctrl_usbc_audio_en1 {
 		compatible = "qcom,msm-cdc-pinctrl";
@@ -166,7 +278,6 @@
 		pinctrl-0 = <&wcd_usbc_analog_en1_active>;
 		pinctrl-1 = <&wcd_usbc_analog_en1_idle>;
 	};
-
 	cdc_pdm_gpios: cdc_pdm_pinctrl {
 		compatible = "qcom,msm-cdc-pinctrl";
 		pinctrl-names = "aud_active", "aud_sleep";
@@ -199,27 +310,30 @@
 
 	cdc_sdw_gpios: sdw_clk_data_pinctrl {
 		compatible = "qcom,msm-cdc-pinctrl";
-		pinctrl-names = "aud_active", "aud_sleep";
-		pinctrl-0 = <&sdw_clk_active &sdw_data_active>;
-		pinctrl-1 = <&sdw_clk_sleep &sdw_data_sleep>;
 	};
+
+	/* huaqin add for JD2019-123 by xudayi at 2018/08/3 start */
+	sec_mi2s_gpios: sec_pinctrl {
+		compatible = "qcom,msm-cdc-pinctrl";
+		pinctrl-names = "aud_active", "aud_sleep";
+		pinctrl-0 = <&sec_mi2s_active &sec_mi2s_data0_active
+			&sec_mi2s_data1_active>;
+		pinctrl-1 = <&sec_mi2s_sleep &sec_mi2s_data0_sleep
+			&sec_mi2s_data1_sleep>;
+		qcom,lpi-gpios;
+	};
+	/* huaqin add for JD2019-123 by xudayi at 2018/08/3 end */
 
 	wsa_spkr_en1: wsa_spkr_en1_pinctrl {
 		compatible = "qcom,msm-cdc-pinctrl";
-		pinctrl-names = "aud_active", "aud_sleep";
-		pinctrl-0 = <&spkr_1_sd_n_active>;
-		pinctrl-1 = <&spkr_1_sd_n_sleep>;
 	};
 
 	wsa_spkr_en2: wsa_spkr_en2_pinctrl {
 		compatible = "qcom,msm-cdc-pinctrl";
-		pinctrl-names = "aud_active", "aud_sleep";
-		pinctrl-0 = <&spkr_2_sd_n_active>;
-		pinctrl-1 = <&spkr_2_sd_n_sleep>;
 	};
 
 	msm_sdw_codec: msm-sdw-codec@62ec1000 {
-		status = "okay";
+		status = "disabled";
 		compatible = "qcom,msm-sdw-codec";
 		reg = <0x62ec1000 0x0>;
 		interrupts = <0 88 0>;
@@ -372,6 +486,15 @@
 			clock-names = "aqt_clk";
 			clocks = <&clock_audio_lnbb AUDIO_PMIC_LNBB_CLK>;
 		};
+	};
+	msm-cirrus-playback {
+		compatible = "cirrus,msm-cirrus-playback";
+		usecase-names = "Playback", "Voice", "Ringtone", "Notification";
+	};
+
+	msm-cirrus-playback-addcontrol {
+		compatible = "cirrus,msm-cirrus-playback-addcontrol";
+		usecase-names = "Playback", "Voice", "Ringtone", "Notification";
 	};
 };
 

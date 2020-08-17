@@ -549,9 +549,10 @@
 		};
 	};
 
-	sde_dp: qcom,dp_display@0{
+	sde_dp: qcom,dp_display@ae90000{
 		cell-index = <0>;
 		compatible = "qcom,dp-display";
+		status = "disabled";
 
 		vdda-1p2-supply = <&pm660_l1>;
 		vdda-0p9-supply = <&pm660l_l1>;

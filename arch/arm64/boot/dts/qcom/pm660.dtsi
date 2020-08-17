@@ -356,6 +356,7 @@
 		};
 
 		bcl_sensor: bcl@4200 {
+			status = "disabled";
 			compatible = "qcom,msm-bcl-lmh";
 			reg = <0x4200 0xff>,
 				<0x4300 0xff>;
@@ -558,6 +559,7 @@
 	};
 
 	soc {
+		disable-thermal-zone;
 		polling-delay-passive = <100>;
 		polling-delay = <0>;
 		thermal-governor = "low_limits_cap";
@@ -567,7 +569,7 @@
 
 		trips {
 			pm660_low_soc: low-soc {
-				temperature = <10>;
+				temperature = <0>;
 				hysteresis = <0>;
 				type = "passive";
 			};
