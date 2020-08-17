@@ -269,6 +269,20 @@ source "kernel/Kconfig.freezer"
 
 source "arch/arm64/Kconfig.platforms"
 
+choice
+    bool "Product selection"
+    default PRODUCT_KUNLUN2
+    help
+      select build product
+
+config PRODUCT_KUNLUN2
+    bool "kunlun2"
+	help
+	     This enables support for kunlun2 product. If you don't
+		 know what to do here, say N
+
+endchoice
+
 menu "Bus support"
 
 config PCI
