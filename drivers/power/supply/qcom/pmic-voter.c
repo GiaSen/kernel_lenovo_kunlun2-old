@@ -393,9 +393,20 @@ int vote(struct votable *votable, const char *client_str, bool enabled, int val)
 		goto out;
 	}
 
+#if defined(CONFIG_PRODUCT_ZAP)
+	if ((!strcmp(client_str, "fg_sram_read")) || (!strcmp(client_str, "fg_sram_write")))
+		pr_debug("%s: %s,%d voting %s of val=%d\n",
+			votable->name,
+			client_str, client_id, enabled ? "on" : "off", val);
+	else
+		pr_info("%s: %s,%d voting %s of val=%d\n",
+			votable->name,
+			client_str, client_id, enabled ? "on" : "off", val);
+#else
 	pr_debug("%s: %s,%d voting %s of val=%d\n",
 		votable->name,
 		client_str, client_id, enabled ? "on" : "off", val);
+#endif
 	switch (votable->type) {
 	case VOTE_MIN:
 		vote_min(votable, client_id, &effective_result, &effective_id);

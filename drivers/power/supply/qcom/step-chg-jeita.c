@@ -79,7 +79,7 @@ struct step_chg_info {
 
 	struct votable		*fcc_votable;
 	struct votable		*fv_votable;
-	struct votable		*usb_icl_votable;
+	struct votable		*chg_disable_votable;
 	struct wakeup_source	*step_chg_ws;
 	struct power_supply	*batt_psy;
 	struct power_supply	*bms_psy;
@@ -487,7 +487,7 @@ static int handle_step_chg_config(struct step_chg_info *chip)
 
 	vote(chip->fcc_votable, STEP_CHG_VOTER, true, fcc_ua);
 
-	pr_debug("%s = %d Step-FCC = %duA\n",
+	pr_err("%s = %d Step-FCC = %duA\n",
 		chip->step_chg_config->prop_name, pval.intval, fcc_ua);
 
 update_time:
@@ -518,8 +518,8 @@ static int handle_jeita(struct step_chg_info *chip)
 			vote(chip->fcc_votable, JEITA_VOTER, false, 0);
 		if (chip->fv_votable)
 			vote(chip->fv_votable, JEITA_VOTER, false, 0);
-		if (chip->usb_icl_votable)
-			vote(chip->usb_icl_votable, JEITA_VOTER, false, 0);
+		if (chip->chg_disable_votable)
+			vote(chip->chg_disable_votable, JEITA_VOTER, false, 0);
 		return 0;
 	}
 
@@ -565,10 +565,10 @@ static int handle_jeita(struct step_chg_info *chip)
 	if (!chip->fv_votable)
 		goto update_time;
 
-	if (!chip->usb_icl_votable)
-		chip->usb_icl_votable = find_votable("USB_ICL");
+	if (!chip->chg_disable_votable)
+		chip->chg_disable_votable = find_votable("CHG_DISABLE");
 
-	if (!chip->usb_icl_votable)
+	if (!chip->chg_disable_votable)
 		goto set_jeita_fv;
 
 	/*
@@ -578,7 +578,7 @@ static int handle_jeita(struct step_chg_info *chip)
 	rc = power_supply_get_property(chip->batt_psy,
 				POWER_SUPPLY_PROP_VOLTAGE_MAX, &pval);
 	if (rc || (pval.intval == fv_uv)) {
-		vote(chip->usb_icl_votable, JEITA_VOTER, false, 0);
+		vote(chip->chg_disable_votable, JEITA_VOTER, false, 0);
 		goto set_jeita_fv;
 	}
 
@@ -590,13 +590,19 @@ static int handle_jeita(struct step_chg_info *chip)
 		rc = power_supply_get_property(chip->batt_psy,
 				POWER_SUPPLY_PROP_VOLTAGE_NOW, &pval);
 		if (!rc && (pval.intval > fv_uv))
-			vote(chip->usb_icl_votable, JEITA_VOTER, true, 0);
+			vote(chip->chg_disable_votable, JEITA_VOTER, true, 1);
 		else if (pval.intval < (fv_uv - JEITA_SUSPEND_HYST_UV))
-			vote(chip->usb_icl_votable, JEITA_VOTER, false, 0);
+			vote(chip->chg_disable_votable, JEITA_VOTER, false, 0);
 	}
 
 set_jeita_fv:
 	vote(chip->fv_votable, JEITA_VOTER, fv_uv ? true : false, fv_uv);
+
+#if defined( CONFIG_PRODUCT_KUNLUN2 )
+	power_supply_get_property(chip->batt_psy, POWER_SUPPLY_PROP_TEMP, &pval);
+#endif
+	pr_err("%s = %d FCC = %duA FV = %duV\n",
+		chip->jeita_fcc_config->prop_name, pval.intval, fcc_ua, fv_uv);
 
 update_time:
 	chip->jeita_last_update_time = ktime_get();
@@ -680,8 +686,8 @@ static void status_change_work(struct work_struct *work)
 		power_supply_get_property(chip->usb_psy,
 				POWER_SUPPLY_PROP_PRESENT, &prop);
 		if (!prop.intval) {
-			if (chip->usb_icl_votable)
-				vote(chip->usb_icl_votable, JEITA_VOTER,
+			if (chip->chg_disable_votable)
+				vote(chip->chg_disable_votable, JEITA_VOTER,
 						false, 0);
 		}
 	}
@@ -770,7 +776,11 @@ int qcom_step_chg_init(struct device *dev,
 
 	chip->step_chg_config->psy_prop = POWER_SUPPLY_PROP_VOLTAGE_NOW;
 	chip->step_chg_config->prop_name = "VBATT";
+#if defined(CONFIG_PRODUCT_ZAP)
+	chip->step_chg_config->hysteresis = 0;
+#else
 	chip->step_chg_config->hysteresis = 100000;
+#endif
 
 	chip->jeita_fcc_config = devm_kzalloc(dev,
 			sizeof(struct jeita_fcc_cfg), GFP_KERNEL);
@@ -781,10 +791,18 @@ int qcom_step_chg_init(struct device *dev,
 
 	chip->jeita_fcc_config->psy_prop = POWER_SUPPLY_PROP_TEMP;
 	chip->jeita_fcc_config->prop_name = "BATT_TEMP";
+#if defined(CONFIG_PRODUCT_ZAP)
+	chip->jeita_fcc_config->hysteresis = 0;
+#else
 	chip->jeita_fcc_config->hysteresis = 10;
+#endif
 	chip->jeita_fv_config->psy_prop = POWER_SUPPLY_PROP_TEMP;
 	chip->jeita_fv_config->prop_name = "BATT_TEMP";
+#if defined(CONFIG_PRODUCT_ZAP)
+	chip->jeita_fv_config->hysteresis = 0;
+#else
 	chip->jeita_fv_config->hysteresis = 10;
+#endif
 
 	INIT_DELAYED_WORK(&chip->status_change_work, status_change_work);
 	INIT_DELAYED_WORK(&chip->get_config_work, get_config_work);
