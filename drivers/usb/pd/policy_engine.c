@@ -3783,6 +3783,31 @@ static ssize_t get_pps_status_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(get_pps_status);
 
+#ifdef CONFIG_PRODUCT_KUNLUN2
+static ssize_t get_cc_status_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int ret=0;
+	struct usbpd *pd = dev_get_drvdata(dev);
+	enum plug_orientation cc = usbpd_get_plug_orientation(pd);
+	switch (cc){
+	case ORIENTATION_CC1:
+			ret=1;
+			break;
+	case ORIENTATION_CC2:
+			ret=2;
+			break;
+	case ORIENTATION_NONE:
+			ret=0;
+			break;
+	default:
+		ret=0;
+	}
+	return snprintf(buf, PAGE_SIZE, "%d\n",ret );
+}
+static DEVICE_ATTR_RO(get_cc_status);
+#endif
+
 static ssize_t get_battery_cap_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
@@ -3873,6 +3898,9 @@ static struct attribute *usbpd_attrs[] = {
 	&dev_attr_get_src_cap_ext.attr,
 	&dev_attr_get_status.attr,
 	&dev_attr_get_pps_status.attr,
+#ifdef CONFIG_PRODUCT_KUNLUN2
+	&dev_attr_get_cc_status.attr,
+#endif
 	&dev_attr_get_battery_cap.attr,
 	&dev_attr_get_battery_status.attr,
 	NULL,
