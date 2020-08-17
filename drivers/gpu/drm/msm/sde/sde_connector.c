@@ -26,6 +26,10 @@
 
 #define BL_NODE_NAME_SIZE 32
 
+#ifdef CONFIG_PRODUCT_ZAP
+#define CONFIG_BRIGHTNESS_HBM
+#endif
+
 /* Autorefresh will occur after FRAME_CNT frames. Large values are unlikely */
 #define AUTOREFRESH_MAX_FRAME_CNT 6
 
@@ -61,6 +65,70 @@ static const struct drm_prop_enum_list e_power_mode[] = {
 	{SDE_MODE_DPMS_OFF,	"OFF"},
 };
 
+#ifdef CONFIG_BRIGHTNESS_HBM
+#define BRIGHTNESS_HBM_ON		1
+#define BRIGHTNESS_HBM_OFF	0
+static int actual_brghtness = 0;
+int dsi_panel_on_hbm = 0;
+static int sde_backlight_device_hbm_update_status(struct backlight_device *bd)
+{
+	int brightness;
+	struct sde_connector *c_conn;
+	int bl_lvl;
+	/* struct drm_event event; */
+	int rc = 0;
+
+	if ((bd->props.power != FB_BLANK_UNBLANK) ||
+			(bd->props.state & BL_CORE_FBBLANK) ||
+			(bd->props.state & BL_CORE_SUSPENDED)) {
+		brightness = 0;
+		pr_info("hbm FB blank\n");
+		return 0;
+	}
+
+	brightness = bd->props.brightness;
+	if (brightness != 0) {
+		pr_info("request hbm for next panel on\n");
+		dsi_panel_on_hbm = 1;
+		if (brightness == 0xff) {
+			return 0;
+		}
+	} else
+		dsi_panel_on_hbm = 0;
+
+	if (actual_brghtness != 0 && brightness == 0) {
+		bl_lvl = BRIGHTNESS_HBM_OFF;
+	} else if (actual_brghtness != 0 && brightness == 1)
+		bl_lvl = BRIGHTNESS_HBM_ON;
+	else {
+		pr_info("wrong value!\n");
+		return 0;
+	}
+	pr_info("bl hbm %s\n", bl_lvl? "on" : "off");
+	c_conn = bl_get_data(bd);
+
+	if (c_conn->ops.set_backlight_hbm) {
+/*		event.type = DRM_EVENT_SYS_BACKLIGHT;
+		event.length = sizeof(u32);
+		msm_mode_object_event_notify(&c_conn->base.base,
+				c_conn->base.dev, &event, (u8 *)&brightness); */
+		rc = c_conn->ops.set_backlight_hbm(c_conn->display, bl_lvl);
+	}
+
+	return rc;
+}
+
+static int sde_backlight_device_hbm_get_brightness(struct backlight_device *bd)
+{
+	return 0;
+}
+
+static const struct backlight_ops sde_backlight_hbm_device_ops = {
+	.update_status = sde_backlight_device_hbm_update_status,
+	.get_brightness = sde_backlight_device_hbm_get_brightness,
+};
+#endif
+
 static int sde_backlight_device_update_status(struct backlight_device *bd)
 {
 	int brightness;
@@ -76,7 +144,9 @@ static int sde_backlight_device_update_status(struct backlight_device *bd)
 			(bd->props.state & BL_CORE_FBBLANK) ||
 			(bd->props.state & BL_CORE_SUSPENDED))
 		brightness = 0;
-
+#ifdef CONFIG_BRIGHTNESS_HBM
+	actual_brghtness = brightness;
+#endif
 	c_conn = bl_get_data(bd);
 	display = (struct dsi_display *) c_conn->display;
 	if (brightness > display->panel->bl_config.bl_max_level)
@@ -138,6 +208,14 @@ static int sde_backlight_setup(struct sde_connector *c_conn,
 							display_count);
 	c_conn->bl_device = backlight_device_register(bl_node_name, dev->dev,
 			c_conn, &sde_backlight_device_ops, &props);
+
+#ifdef CONFIG_BRIGHTNESS_HBM
+	snprintf(bl_node_name, BL_NODE_NAME_SIZE, "panel%u-hbm",
+							display_count);
+
+	c_conn->bl_hdm = backlight_device_register(bl_node_name, dev->dev,
+			c_conn, &sde_backlight_hbm_device_ops, &props);
+#endif
 	if (IS_ERR_OR_NULL(c_conn->bl_device)) {
 		SDE_ERROR("Failed to register backlight: %ld\n",
 				    PTR_ERR(c_conn->bl_device));

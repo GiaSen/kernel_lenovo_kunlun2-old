@@ -163,6 +163,7 @@ struct sde_connector_ops {
 			uint32_t event_idx, bool enable, void *display);
 
 	int (*set_backlight)(void *display, u32 bl_lvl);
+	int (*set_backlight_hbm)(void *display, u32 bl_lvl);
 
 	/**
 	 * soft_reset - perform a soft reset on the connector
@@ -364,6 +365,7 @@ struct sde_connector {
 	spinlock_t event_lock;
 
 	struct backlight_device *bl_device;
+	struct backlight_device *bl_hdm;
 	struct delayed_work status_work;
 	u32 force_panel_dead;
 	u32 esd_status_interval;
