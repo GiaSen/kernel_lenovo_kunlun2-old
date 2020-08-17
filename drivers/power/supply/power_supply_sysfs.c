@@ -38,6 +38,9 @@
 	.store = power_supply_store_property,				\
 }
 
+#define SUPPORT_BATTERY_AGE
+#define SUPPORT_USER_CHARGE_OP
+
 static struct device_attribute power_supply_attrs[];
 
 static ssize_t power_supply_show_property(struct device *dev,
@@ -208,6 +211,9 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(charge_avg),
 	POWER_SUPPLY_ATTR(charge_counter),
 	POWER_SUPPLY_ATTR(constant_charge_current),
+#if defined( CONFIG_PRODUCT_KUNLUN2 )
+	POWER_SUPPLY_ATTR(compass_opened), //hzn add
+#endif
 	POWER_SUPPLY_ATTR(constant_charge_current_max),
 	POWER_SUPPLY_ATTR(constant_charge_voltage),
 	POWER_SUPPLY_ATTR(constant_charge_voltage_max),
@@ -246,6 +252,16 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(usb_otg),
 	POWER_SUPPLY_ATTR(battery_charging_enabled),
 	POWER_SUPPLY_ATTR(charging_enabled),
+#if defined(CONFIG_PRODUCT_JD2019)
+	POWER_SUPPLY_ATTR(start_game_enabled),
+#endif
+#ifdef SUPPORT_BATTERY_AGE
+	POWER_SUPPLY_ATTR(age),
+#endif
+#ifdef SUPPORT_USER_CHARGE_OP
+	POWER_SUPPLY_ATTR(user_charge_op),
+	POWER_SUPPLY_ATTR(user_charge_soc),
+#endif
 	POWER_SUPPLY_ATTR(step_charging_enabled),
 	POWER_SUPPLY_ATTR(step_charging_step),
 	POWER_SUPPLY_ATTR(pin_enabled),

@@ -39,6 +39,29 @@
 				__func__, ##__VA_ARGS__);	\
 	} while (0)
 
+#if defined(CONFIG_PRODUCT_JD2019)
+#if defined(CUSTOM_IDENTIFY_FLOAT_CHARGER)
+extern struct smb_charger *smbchg_dev;
+
+#define LENOVO_CHG_FLOW_WORK_DELAY	12000	//12s
+#define VOTECHG_ICL_VALUE_500MA		500000
+#define VOTECHG_ICL_VALUE_1000MA	1000000
+#define VOTECHG_ICL_VALUE_3000MA	3000000
+#endif
+
+#define PLAY_GMAE_RESET_CURRENT_DELAY_MS  10000
+#define VOTECHG_FCC_VALUE_700MA		500000
+#define VOTECHG_FCC_VALUE_3000MA	3000000
+extern int g_play_enable;
+#endif
+
+#define SUPPORT_BATTERY_AGE
+#define SUPPORT_USER_CHARGE_OP
+
+#if defined(CONFIG_PRODUCT_ZAP)
+#define SUPPORT_VENDOR_USB_PLUGIN_AWAKE
+#endif
+
 static bool is_secure(struct smb_charger *chg, int addr)
 {
 	if (addr == SHIP_MODE_REG || addr == FREQ_CLK_DIV_REG)
@@ -729,6 +752,12 @@ static void smblib_uusb_removal(struct smb_charger *chg)
 	if (rc < 0)
 		smblib_err(chg,
 			"Couldn't un-vote DCP from USB ICL rc=%d\n", rc);
+
+#if defined(CONFIG_PRODUCT_ZAP)
+#ifdef SUPPORT_VENDOR_USB_PLUGIN_AWAKE
+	vote(chg->awake_votable, PLUGIN_LOCK_VOTER, false, 0);
+#endif
+#endif
 }
 
 void smblib_suspend_on_debug_battery(struct smb_charger *chg)
@@ -1761,6 +1790,29 @@ int smblib_get_prop_batt_capacity(struct smb_charger *chg,
 	return rc;
 }
 
+#ifdef SUPPORT_BATTERY_AGE
+int smblib_get_prop_batt_age(struct smb_charger *chg,
+			     union power_supply_propval *val)
+{
+	int rc = -EINVAL;
+	union power_supply_propval pval = {0, };
+
+	if (chg->bms_psy) {
+		rc = power_supply_get_property(chg->bms_psy,
+				POWER_SUPPLY_PROP_CHARGE_FULL, &pval);
+		if (rc < 0) {
+			smblib_err(chg, "Fail: get charge full rc=%d\n",
+				   rc);
+			return rc;
+		}
+
+#define BATTERY_BASE_CAPACITY			3800000
+		val->intval = pval.intval * 100 / BATTERY_BASE_CAPACITY;
+	}
+	return rc;
+}
+#endif
+
 int smblib_get_prop_batt_status(struct smb_charger *chg,
 				union power_supply_propval *val)
 {
@@ -2102,6 +2154,10 @@ int smblib_set_prop_system_temp_level(struct smb_charger *chg,
 
 	vote(chg->fcc_votable, THERMAL_DAEMON_VOTER, true,
 			chg->thermal_mitigation[chg->system_temp_level]);
+#if defined( CONFIG_PRODUCT_KUNLUN2 )
+	pr_err("hzn: system_temp_level = %d ----\n", chg->system_temp_level);
+	pr_err("hzn: thermal_mitigation = %d ----\n", chg->thermal_mitigation[chg->system_temp_level]);
+#endif
 	return 0;
 }
 
@@ -2716,7 +2772,11 @@ int smblib_get_prop_die_health(struct smb_charger *chg,
 
 #define SDP_CURRENT_UA			500000
 #define CDP_CURRENT_UA			1500000
+#if defined(CONFIG_PRODUCT_JD2019) || defined(CONFIG_PRODUCT_ZAP)
+#define DCP_CURRENT_UA			3000000
+#else
 #define DCP_CURRENT_UA			1500000
+#endif
 #define HVDCP_CURRENT_UA		3000000
 #define TYPEC_DEFAULT_CURRENT_UA	900000
 #define TYPEC_MEDIUM_CURRENT_UA		1500000
@@ -2736,6 +2796,9 @@ static int get_rp_based_dcp_current(struct smb_charger *chg, int typec_mode)
 		rp_ua = DCP_CURRENT_UA;
 	}
 
+#if defined(CONFIG_PRODUCT_JD2019)
+	printk("[%s]line=%d typec_mode=%d, rp_ua=%d\n", __FUNCTION__, __LINE__, typec_mode, rp_ua);
+#endif
 	return rp_ua;
 }
 
@@ -2769,8 +2832,13 @@ static int smblib_handle_usb_current(struct smb_charger *chg,
 			 */
 			typec_mode = smblib_get_prop_typec_mode(chg);
 			rp_ua = get_rp_based_dcp_current(chg, typec_mode);
+#if defined(CONFIG_PRODUCT_ZAP)
+			rc = vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER,
+								true, 500000);
+#else
 			rc = vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER,
 								true, rp_ua);
+#endif
 			if (rc < 0)
 				return rc;
 		} else {
@@ -3315,9 +3383,193 @@ int smblib_get_charge_current(struct smb_charger *chg,
 	return 0;
 }
 
+#if defined(CONFIG_PRODUCT_JD2019)
+#if defined(CUSTOM_IDENTIFY_FLOAT_CHARGER)
+int lenovo_get_prop_usb_present(struct smb_charger *chg)
+{
+	union power_supply_propval present_val = {0, };
+	int rc;
+
+	rc = smblib_get_prop_usb_present(chg, &present_val);
+
+	return present_val.intval;
+}
+
+void lenovo_typec_removal_function(struct smb_charger *chg)
+{
+	cancel_delayed_work(&chg->lenovo_chg_flow_work);
+	//cancel_delayed_work(&chg->lenovo_min_monitor_work);
+	cancel_delayed_work(&chg->reset_max_fcc_current_work);
+}
+#endif
+#endif
+
 /************************
  * PARALLEL PSY GETTERS *
  ************************/
+
+#if defined(CONFIG_PRODUCT_JD2019)
+#if defined(CUSTOM_IDENTIFY_FLOAT_CHARGER)
+void lenovo_chg_flow_work(struct work_struct *work)
+{
+	int rc = 0;
+	const struct apsd_result *apsd_result = NULL;
+
+	printk("enter lenovo_chg_flow_work\n");
+
+	smblib_update_usb_type(smbchg_dev);
+	power_supply_changed(smbchg_dev->usb_psy);
+
+	//Check the VBUS status againg before runing the work
+	if (!lenovo_get_prop_usb_present(smbchg_dev)) {
+		printk("Try to run %s, but VBUS_IN is low\n", __func__);
+		lenovo_typec_removal_function(smbchg_dev);
+		return;
+	}
+
+	apsd_result = smblib_update_usb_type(smbchg_dev);
+	printk("enter lenovo_chg_flow_work  apsd_result->pst=%d\n", apsd_result->pst);
+
+	if (apsd_result->pst == POWER_SUPPLY_TYPE_USB) {
+		power_supply_changed(smbchg_dev->usb_psy);
+	}
+
+	if (smbchg_dev->pd_active) {
+		printk("%s: PD_active\n", __func__);
+		//smblib_lenovo_monitor_start(smbchg_dev, 0);		//BSP: Jeita start
+		return;
+	}
+
+	printk("enter lenovo_chg_flow_work  apsd_result->bit=%d\n", apsd_result->bit);
+
+	switch (apsd_result->bit) {
+	case SDP_CHARGER_BIT:
+	case FLOAT_CHARGER_BIT:
+		printk("lenovo_chg_flow_work enter FLOAT_CHARGER_BIT\n");
+		rc= vote(smbchg_dev->usb_icl_votable, CUSTOM_ICL_VOTER, true, VOTECHG_ICL_VALUE_500MA);
+		if (rc < 0)
+		{
+			printk("[%s]line=%d: vote ICL fail\n", __FUNCTION__, __LINE__);
+		}
+
+		//smblib_lenovo_monitor_start(smbchg_dev, 0);		//BSP: Jeita start
+		break;
+
+	case CDP_CHARGER_BIT:
+		printk("lenovo_chg_flow_work enter CDP_CHARGER_BIT\n");
+		rc= vote(smbchg_dev->usb_icl_votable, CUSTOM_ICL_VOTER, true, VOTECHG_ICL_VALUE_500MA);
+		if (rc < 0)
+		{
+			printk("[%s]line=%d: vote ICL fail\n", __FUNCTION__, __LINE__);
+		}
+
+		//smblib_lenovo_monitor_start(smbchg_dev, 0);		//BSP: Jeita start
+		break;
+
+	case OCP_CHARGER_BIT:
+		printk("lenovo_chg_flow_work entert OCP_CHARGER_BIT");
+		rc= vote(smbchg_dev->usb_icl_votable, CUSTOM_ICL_VOTER, true, VOTECHG_ICL_VALUE_1000MA);
+		if (rc < 0)
+		{
+			printk("[%s]line=%d: vote ICL fail\n", __FUNCTION__, __LINE__);
+		}
+
+		//smblib_lenovo_monitor_start(smbchg_dev, 0);		//BSP: Jeita start
+		break;
+
+	case DCP_CHARGER_BIT | QC_3P0_BIT:
+	case DCP_CHARGER_BIT | QC_2P0_BIT:
+	case DCP_CHARGER_BIT:
+		printk("lenovo_chg_flow_work entert DCP_CHARGER_BIT");
+		rc= vote(smbchg_dev->usb_icl_votable, CUSTOM_ICL_VOTER, true, VOTECHG_ICL_VALUE_3000MA);
+		if (rc < 0)
+		{
+			printk("[%s]line=%d: vote ICL fail\n", __FUNCTION__, __LINE__);
+		}
+
+		//smblib_lenovo_monitor_start(smbchg_dev, 0);		//BSP: Jeita start
+		break;
+
+	default:
+		break;
+	}
+}
+#endif
+
+void reset_max_fcc_current_work(struct work_struct *work)
+{
+	int rc = 0;
+	if (g_play_enable)
+		rc= vote(smbchg_dev->fcc_votable, FCC_GAME_VOTER, true, VOTECHG_FCC_VALUE_700MA);
+	else
+		rc= vote(smbchg_dev->fcc_votable, FCC_GAME_VOTER, false, 0);
+
+	 if (rc < 0)
+	{
+		pr_err("reset_max_fcc_current_work, vote fcc fail\n");
+	}
+	schedule_delayed_work(&smbchg_dev->reset_max_fcc_current_work, msecs_to_jiffies(PLAY_GMAE_RESET_CURRENT_DELAY_MS));
+}
+#endif
+
+#ifdef SUPPORT_USER_CHARGE_OP
+#define USER_HEALTH_INIT_DELAY_MS	1000	/* 1 sec */
+#define USER_HEALTH_RESTART_DELAY_MS	1000	/* 1 sec */
+#define USER_HEALTH_CHECK_DELAY_MS	30000	/* 30 sec */
+void smblib_start_user_health_work(struct smb_charger *chg)
+{
+	pr_info("user_batt_health start work\n");
+	schedule_delayed_work(&chg->user_health_charge_work,
+					msecs_to_jiffies(USER_HEALTH_INIT_DELAY_MS));
+}
+
+void smblib_restart_user_health_work(struct smb_charger *chg)
+{
+	pr_info("user_batt_health restart work\n");
+	cancel_delayed_work_sync(&chg->user_health_charge_work);
+	schedule_delayed_work(&chg->user_health_charge_work,
+					msecs_to_jiffies(USER_HEALTH_RESTART_DELAY_MS));
+}
+
+static void smblib_user_health_charge_work(struct work_struct *work)
+{
+	struct smb_charger *chg = container_of(work, struct smb_charger,
+							user_health_charge_work.work);
+	union power_supply_propval pval = {0, };
+	int rc = 0;
+
+	rc = smblib_get_prop_from_bms(chg, POWER_SUPPLY_PROP_CAPACITY, &pval);
+	if (rc < 0) {
+		smblib_err(chg, "user_batt_health Couldn't read SOC value, rc=%d\n", rc);
+		return;
+	}
+
+	if (chg->smb_charger_online == 1) {
+		if (chg->user_charge_op_enable) {
+			if (chg->user_charge_soc == 100) {
+				pr_info("user_batt_health 1_charge enable\n");
+				vote(chg->chg_disable_votable, USER_HEALTH_CHARGE_VOTER, false, 0);
+			} else if (pval.intval >= chg->user_charge_soc) {
+				pr_info("user_batt_health 2_charge disable\n");
+				vote(chg->chg_disable_votable, USER_HEALTH_CHARGE_VOTER, true, 0);
+			} else if (pval.intval < chg->user_charge_soc) {
+				pr_info("user_batt_health 3_charge enable\n");
+				vote(chg->chg_disable_votable, USER_HEALTH_CHARGE_VOTER, false, 0);
+			}
+		} else {
+			pr_info("user_batt_health 4_charge enable\n");
+			vote(chg->chg_disable_votable, USER_HEALTH_CHARGE_VOTER, false, 0);
+		}
+	} else {
+		pr_info("user_batt_health 5_charge enable\n");
+		vote(chg->chg_disable_votable, USER_HEALTH_CHARGE_VOTER, false, 0);
+	}
+	pr_info("user_batt_health %d, %d, %d", chg->user_charge_op_enable, chg->user_charge_soc, pval.intval);
+
+	schedule_delayed_work(&chg->user_health_charge_work,
+					msecs_to_jiffies(USER_HEALTH_CHECK_DELAY_MS));
+}
+#endif
 
 int smblib_get_prop_slave_current_now(struct smb_charger *chg,
 		union power_supply_propval *pval)
@@ -3547,6 +3799,21 @@ void smblib_usb_plugin_hard_reset_locked(struct smb_charger *chg)
 	power_supply_changed(chg->usb_psy);
 	smblib_dbg(chg, PR_INTERRUPT, "IRQ: usbin-plugin %s\n",
 					vbus_rising ? "attached" : "detached");
+#ifdef SUPPORT_USER_CHARGE_OP
+	if (vbus_rising)
+		chg->smb_charger_online = 1;
+	else
+		chg->smb_charger_online = 0;
+#endif
+
+#if defined(CONFIG_PRODUCT_ZAP)
+#ifdef SUPPORT_VENDOR_USB_PLUGIN_AWAKE
+	if (vbus_rising)
+		vote(chg->awake_votable, PLUGIN_LOCK_VOTER, true, 0);
+	else
+		vote(chg->awake_votable, PLUGIN_LOCK_VOTER, false, 0);
+#endif
+#endif
 }
 
 #define PL_DELAY_MS			30000
@@ -3618,13 +3885,41 @@ void smblib_usb_plugin_locked(struct smb_charger *chg)
 		if (rc < 0)
 			smblib_err(chg, "Couldn't disable DPDM rc=%d\n", rc);
 	}
+#if defined(CONFIG_PRODUCT_JD2019)
+#if defined(CUSTOM_IDENTIFY_FLOAT_CHARGER)
+	if (vbus_rising)
+	{
+		schedule_delayed_work(&smbchg_dev->lenovo_chg_flow_work, msecs_to_jiffies(LENOVO_CHG_FLOW_WORK_DELAY));
+		schedule_delayed_work(&smbchg_dev->reset_max_fcc_current_work, msecs_to_jiffies(PLAY_GMAE_RESET_CURRENT_DELAY_MS));
 
+	}
+	else
+	{
+		lenovo_typec_removal_function(chg);
+	}
+#endif
+#endif
 	if (chg->connector_type == POWER_SUPPLY_CONNECTOR_MICRO_USB)
 		smblib_micro_usb_plugin(chg, vbus_rising);
 
 	power_supply_changed(chg->usb_psy);
 	smblib_dbg(chg, PR_INTERRUPT, "IRQ: usbin-plugin %s\n",
 					vbus_rising ? "attached" : "detached");
+#ifdef SUPPORT_USER_CHARGE_OP
+	if (vbus_rising)
+		chg->smb_charger_online = 1;
+	else
+		chg->smb_charger_online = 0;
+#endif
+
+#if defined(CONFIG_PRODUCT_ZAP)
+#ifdef SUPPORT_VENDOR_USB_PLUGIN_AWAKE
+	if (vbus_rising)
+		vote(chg->awake_votable, PLUGIN_LOCK_VOTER, true, 0);
+	else
+		vote(chg->awake_votable, PLUGIN_LOCK_VOTER, false, 0);
+#endif
+#endif
 }
 
 irqreturn_t smblib_handle_usb_plugin(int irq, void *data)
@@ -3632,6 +3927,9 @@ irqreturn_t smblib_handle_usb_plugin(int irq, void *data)
 	struct smb_irq_data *irq_data = data;
 	struct smb_charger *chg = irq_data->parent_data;
 
+#if defined(CONFIG_PRODUCT_ZAP)
+	smblib_dbg(chg, PR_INTERRUPT, "IRQ: %s\n", __func__);
+#endif
 	mutex_lock(&chg->lock);
 	if (chg->pd_hard_reset)
 		smblib_usb_plugin_hard_reset_locked(chg);
@@ -3875,6 +4173,9 @@ static void smblib_force_legacy_icl(struct smb_charger *chg, int pst)
 
 	switch (pst) {
 	case POWER_SUPPLY_TYPE_USB:
+#if defined(CONFIG_PRODUCT_KUNLUN2)
+		pr_err("hzn::USB---\n");
+#endif
 		/*
 		 * USB_PSY will vote to increase the current to 500/900mA once
 		 * enumeration is done. Ensure that USB_PSY has at least voted
@@ -3886,14 +4187,23 @@ static void smblib_force_legacy_icl(struct smb_charger *chg, int pst)
 		vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, false, 0);
 		break;
 	case POWER_SUPPLY_TYPE_USB_CDP:
+#if defined(CONFIG_PRODUCT_KUNLUN2)
+		pr_err("hzn::DCP---\n");
+#endif
 		vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, 1500000);
 		break;
 	case POWER_SUPPLY_TYPE_USB_DCP:
+#if defined(CONFIG_PRODUCT_KUNLUN2)
+		pr_err("hzn::DCP---\n");
+#endif
 		typec_mode = smblib_get_prop_typec_mode(chg);
 		rp_ua = get_rp_based_dcp_current(chg, typec_mode);
 		vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, rp_ua);
 		break;
 	case POWER_SUPPLY_TYPE_USB_FLOAT:
+#if defined(CONFIG_PRODUCT_KUNLUN2)
+		pr_err("hzn::FLOAT---\n");
+#endif
 		/*
 		 * limit ICL to 100mA, the USB driver will enumerate to check
 		 * if this is a SDP and appropriately set the current
@@ -3902,7 +4212,14 @@ static void smblib_force_legacy_icl(struct smb_charger *chg, int pst)
 		break;
 	case POWER_SUPPLY_TYPE_USB_HVDCP:
 	case POWER_SUPPLY_TYPE_USB_HVDCP_3:
+#if defined(CONFIG_PRODUCT_KUNLUN2)
+		pr_err("hzn::HVDCP---\n");
+#endif
+#if defined(CONFIG_PRODUCT_KUNLUN2)
 		vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, 3000000);
+#else
+		vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, 3000000);
+#endif
 		break;
 	default:
 		smblib_err(chg, "Unknown APSD %d; forcing 500mA\n", pst);
@@ -5323,6 +5640,15 @@ int smblib_init(struct smb_charger *chg)
 	INIT_WORK(&chg->rdstd_cc2_detach_work, rdstd_cc2_detach_work);
 	INIT_DELAYED_WORK(&chg->hvdcp_detect_work, smblib_hvdcp_detect_work);
 	INIT_DELAYED_WORK(&chg->clear_hdc_work, clear_hdc_work);
+#if defined(CONFIG_PRODUCT_JD2019)
+#if defined(CUSTOM_IDENTIFY_FLOAT_CHARGER)
+	INIT_DELAYED_WORK(&chg->lenovo_chg_flow_work, lenovo_chg_flow_work);
+#endif
+	INIT_DELAYED_WORK(&chg->reset_max_fcc_current_work, reset_max_fcc_current_work);
+#endif
+#ifdef SUPPORT_USER_CHARGE_OP
+	INIT_DELAYED_WORK(&chg->user_health_charge_work, smblib_user_health_charge_work);
+#endif
 	INIT_WORK(&chg->otg_oc_work, smblib_otg_oc_work);
 	INIT_WORK(&chg->vconn_oc_work, smblib_vconn_oc_work);
 	INIT_DELAYED_WORK(&chg->otg_ss_done_work, smblib_otg_ss_done_work);
@@ -5396,6 +5722,9 @@ int smblib_deinit(struct smb_charger *chg)
 		cancel_work_sync(&chg->rdstd_cc2_detach_work);
 		cancel_delayed_work_sync(&chg->hvdcp_detect_work);
 		cancel_delayed_work_sync(&chg->clear_hdc_work);
+#ifdef SUPPORT_USER_CHARGE_OP
+		cancel_delayed_work_sync(&chg->user_health_charge_work);
+#endif
 		cancel_work_sync(&chg->otg_oc_work);
 		cancel_work_sync(&chg->vconn_oc_work);
 		cancel_delayed_work_sync(&chg->otg_ss_done_work);
