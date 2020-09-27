@@ -217,7 +217,7 @@
 #define KEY_CALC		140	/* AL Calculator */
 #define KEY_SETUP		141
 #define KEY_SLEEP		142	/* SC System Sleep */
-#define KEY_WAKEUP		143	/* System Wake Up */
+#define KEY_WAKEUP		219	/* System Wake Up */
 #define KEY_FILE		144	/* AL Local Machine Browser */
 #define KEY_SENDFILE		145
 #define KEY_DELETEFILE		146
@@ -292,7 +292,7 @@
 #define KEY_CHAT		216
 #define KEY_SEARCH		217
 #define KEY_CONNECT		218
-#define KEY_FINANCE		219	/* AL Checkbook/Finance */
+#define KEY_FINANCE		143	/* AL Checkbook/Finance */
 #define KEY_SPORT		220
 #define KEY_SHOP		221
 #define KEY_ALTERASE		222
